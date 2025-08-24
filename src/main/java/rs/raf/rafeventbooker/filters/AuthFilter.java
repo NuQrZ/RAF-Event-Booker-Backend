@@ -1,0 +1,125 @@
+package rs.raf.rafeventbooker.filters;
+
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.auth0.jwt.interfaces.DecodedJWT;
+
+import javax.annotation.Priority;
+import javax.annotation.security.RolesAllowed;
+import javax.ws.rs.Priorities;
+import javax.ws.rs.container.ContainerRequestContext;
+import javax.ws.rs.container.ContainerRequestFilter;
+import javax.ws.rs.container.ResourceInfo;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.ext.Provider;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
+
+@Provider
+@Priority(Priorities.AUTHENTICATION)
+public class AuthFilter implements ContainerRequestFilter {
+    @Context
+    private ResourceInfo resourceInfo;
+
+    private static final Set<String> PUBLIC_GET_PATHS = new HashSet<>(Arrays.asList(
+            "/events",
+            "/events/search",
+            "/events/latest",
+            "/events/most-viewed",
+            "/events/top-reacted",
+            "/events/by-category",
+            "/events/by-tag",
+            "/events/",
+            "/categories",
+            "/tags"
+    ));
+
+    private static final String JWT_SECRET =
+            Optional.ofNullable(System.getenv("JWT_SECRET")).orElse("CHANGE_ME_SUPER_SECRET_AND_LONG");
+    private static final String JWT_ISSUER =
+            Optional.ofNullable(System.getenv("JWT_ISSUER")).orElse("raf-event-booker");
+
+    @Override
+    public void filter(ContainerRequestContext requestContext) {
+        final String method = requestContext.getMethod();
+        final String path = normalize(requestContext.getUriInfo().getPath());
+        final boolean isPublicGet = "GET".equals(method) && isPathPublic(path);
+
+        if (path.equals("/auth/login")) {
+            return;
+        }
+
+        if (isPublicGet) {
+            return;
+        }
+
+        String authHeader = requestContext.getHeaderString(HttpHeaders.AUTHORIZATION);
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            abort(requestContext, Response.Status.UNAUTHORIZED, "Missing or invalid Authorization header.");
+            return;
+        }
+
+        String token = authHeader.substring("Bearer ".length()).trim();
+
+        DecodedJWT decoded;
+        try {
+            Algorithm algorithm = Algorithm.HMAC256(JWT_SECRET.getBytes(StandardCharsets.UTF_8));
+            decoded = JWT.require(algorithm)
+                    .withIssuer(JWT_ISSUER)
+                    .acceptLeeway(5) // мали clock‑skew у секундама
+                    .build()
+                    .verify(token);
+        } catch (JWTVerificationException e) {
+            abort(requestContext, Response.Status.UNAUTHORIZED, "Invalid token.");
+            return;
+        }
+
+        String role = decoded.getClaim("role").asString();
+        if (role == null || role.isBlank()) {
+            abort(requestContext, Response.Status.FORBIDDEN, "Role missing.");
+            return;
+        }
+
+        Method resourceMethod = resourceInfo.getResourceMethod();
+        if (resourceMethod != null && resourceMethod.isAnnotationPresent(RolesAllowed.class)) {
+            RolesAllowed ra = resourceMethod.getAnnotation(RolesAllowed.class);
+            if (!Arrays.asList(ra.value()).contains(role)) {
+                abort(requestContext, Response.Status.FORBIDDEN, "Insufficient role.");
+            }
+        }
+    }
+
+    private boolean isPathPublic(String path) {
+        for (String publicPath : PUBLIC_GET_PATHS) {
+            if (path.equals(publicPath) ||  path.startsWith(publicPath)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void abort(ContainerRequestContext containerRequestContext, Response.Status status, String message) {
+        containerRequestContext.abortWith(Response.status(status).entity(message).build());
+    }
+
+    private String normalize(String path) {
+        if (path == null || path.isEmpty()) {
+            return "/";
+        }
+        if (!path.startsWith("/")) {
+            path = "/" + path;
+        }
+        if (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+
+        return path;
+    }
+}
