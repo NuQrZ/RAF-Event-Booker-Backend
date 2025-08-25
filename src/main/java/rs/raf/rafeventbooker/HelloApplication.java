@@ -6,8 +6,8 @@ import org.glassfish.jersey.server.ServerProperties;
 import rs.raf.rafeventbooker.config.CORSRequestFilter;
 import rs.raf.rafeventbooker.config.CORSResponseFilter;
 import rs.raf.rafeventbooker.config.ObjectMapperProvider;
-import rs.raf.rafeventbooker.repositories.user.MySQLUserRepository;
-import rs.raf.rafeventbooker.repositories.user.UserRepository;
+import rs.raf.rafeventbooker.repositories.users.MySQLUsersRepository;
+import rs.raf.rafeventbooker.repositories.users.UsersRepository;
 import rs.raf.rafeventbooker.services.AuthService;
 import rs.raf.rafeventbooker.services.UserService;
 
@@ -22,7 +22,7 @@ public class HelloApplication extends ResourceConfig {
         AbstractBinder binder = new AbstractBinder() {
             @Override
             protected void configure() {
-                this.bind(MySQLUserRepository.class).to(UserRepository.class).in(Singleton.class);
+                this.bind(MySQLUsersRepository.class).to(UsersRepository.class).in(Singleton.class);
 
                 this.bindAsContract(AuthService.class);
                 this.bindAsContract(UserService.class);

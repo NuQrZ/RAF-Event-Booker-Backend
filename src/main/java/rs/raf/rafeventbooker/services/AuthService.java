@@ -5,7 +5,7 @@ import com.auth0.jwt.algorithms.Algorithm;
 import org.mindrot.jbcrypt.BCrypt;
 import rs.raf.rafeventbooker.model.User;
 import rs.raf.rafeventbooker.model.enums.UserStatus;
-import rs.raf.rafeventbooker.repositories.user.UserRepository;
+import rs.raf.rafeventbooker.repositories.users.UsersRepository;
 import rs.raf.rafeventbooker.requests.login.LoginRequest;
 
 import javax.inject.Inject;
@@ -20,7 +20,7 @@ import java.util.Optional;
 
 public class AuthService {
     @Inject
-    private UserRepository userRepository;
+    private UsersRepository usersRepository;
 
     private static final String JWT_SECRET = Optional.ofNullable(System.getenv("JWT_SECRET"))
             .orElse("CHANGE_ME_SUPER_SECRET_AND_LONG");
@@ -35,7 +35,7 @@ public class AuthService {
         if (loginRequest == null || loginRequest.email() == null || loginRequest.password() == null) {
             throw new BadRequestException("Invalid credentials!");
         }
-        Optional<User> optionalUser = userRepository.getUserByEmail(loginRequest.email());
+        Optional<User> optionalUser = usersRepository.getUserByEmail(loginRequest.email());
 
         if (optionalUser.isEmpty()) {
             throw new NotFoundException("Invalid email!");

@@ -1,4 +1,4 @@
-package rs.raf.rafeventbooker.repositories.user;
+package rs.raf.rafeventbooker.repositories.users;
 
 import org.mindrot.jbcrypt.BCrypt;
 import rs.raf.rafeventbooker.model.Page;
@@ -12,25 +12,23 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public class MySQLUserRepository extends MySQLAbstractRepository implements UserRepository {
-    private User getUser(ResultSet resultSet) throws SQLException {
-        User user = new User();
-        user.setUserID(resultSet.getInt("user_id"));
-        user.setEmail(resultSet.getString("user_email"));
-        user.setFirstName(resultSet.getString("first_name"));
-        user.setLastName(resultSet.getString("last_name"));
-        user.setPassword(resultSet.getString("user_password"));
-        user.setUserRole(UserRole.valueOf(resultSet.getString("user_role")));
-        user.setUserStatus(UserStatus.valueOf(resultSet.getString("user_status")));
-        Timestamp createdAt = resultSet.getTimestamp("created_at");
-        user.setCreatedAt(createdAt != null ? createdAt.toLocalDateTime() : null);
-
-        return user;
+public class MySQLUsersRepository extends MySQLAbstractRepository implements UsersRepository {
+    private User mapUser(ResultSet resultSet) throws SQLException {
+        return new User(
+                resultSet.getInt("user_id"),
+                resultSet.getString("user_email"),
+                resultSet.getString("first_name"),
+                resultSet.getString("last_name"),
+                resultSet.getString("user_password"),
+                UserRole.valueOf(resultSet.getString("user_role")),
+                UserStatus.valueOf(resultSet.getString("user_status")),
+                resultSet.getTimestamp("created_at") != null ? resultSet.getTimestamp("created_at").toLocalDateTime() : null
+        );
     }
 
     @Override
     public Optional<User> getUserByID(int userID) {
-        String sql = "SELECT * FROM users WHERE user_id = ?";
+        String sql = "select * from users where user_id = ?";
 
         Connection connection = null;
         PreparedStatement preparedStatement = null;
@@ -43,7 +41,7 @@ public class MySQLUserRepository extends MySQLAbstractRepository implements User
 
             resultSet = preparedStatement.executeQuery();
             if (resultSet.next()) {
-                return Optional.of(getUser(resultSet));
+                return Optional.of(mapUser(resultSet));
             }
         } catch (SQLException sqlException) {
             System.err.println(sqlException.getMessage());
@@ -58,7 +56,7 @@ public class MySQLUserRepository extends MySQLAbstractRepository implements User
 
     @Override
     public Optional<User> getUserByEmail(String email) {
-        String sql = "SELECT * FROM users WHERE user_email = ?";
+        String sql = "select * from users where user_email = ?";
 
         Connection connection = null;
         PreparedStatement preparedStatement = null;
@@ -71,7 +69,7 @@ public class MySQLUserRepository extends MySQLAbstractRepository implements User
 
             resultSet = preparedStatement.executeQuery();
             if (resultSet.next()) {
-                return Optional.of(getUser(resultSet));
+                return Optional.of(mapUser(resultSet));
             }
         } catch (SQLException sqlException) {
             System.err.println(sqlException.getMessage());
@@ -85,7 +83,7 @@ public class MySQLUserRepository extends MySQLAbstractRepository implements User
 
     @Override
     public boolean emailExists(String email) {
-        String sql = "SELECT 1 FROM users WHERE user_email = ?";
+        String sql = "select 1 from users where user_email = ?";
 
         Connection connection = null;
         PreparedStatement preparedStatement = null;
@@ -95,33 +93,6 @@ public class MySQLUserRepository extends MySQLAbstractRepository implements User
             connection = newConnection();
             preparedStatement = connection.prepareStatement(sql);
             preparedStatement.setString(1, email);
-
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                return true;
-            }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
-        } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
-        }
-        return false;
-    }
-
-    @Override
-    public boolean userExists(int userID) {
-        String sql = "SELECT 1 FROM users WHERE user_id = ?";
-
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
-        try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setInt(1, userID);
 
             resultSet = preparedStatement.executeQuery();
             if (resultSet.next()) {
@@ -139,7 +110,7 @@ public class MySQLUserRepository extends MySQLAbstractRepository implements User
 
     @Override
     public int createUser(User user) {
-        String sql = "INSERT INTO users(user_email, first_name, last_name, user_password, user_role, user_status) VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "insert into users(user_email, first_name, last_name, user_password, user_role, user_status) values (?, ?, ?, ?, ?, ?)";
 
         Connection connection = null;
         PreparedStatement preparedStatement = null;
@@ -173,7 +144,7 @@ public class MySQLUserRepository extends MySQLAbstractRepository implements User
 
     @Override
     public int updateUser(User user) {
-        String sql = "UPDATE users SET user_email = ?, first_name = ?, last_name = ?, user_password = ?, user_role = ?, user_status = ? WHERE user_id = ?";
+        String sql = "update users set user_email = ?, first_name = ?, last_name = ?, user_password = ?, user_role = ?, user_status = ? where user_id = ?";
 
         Connection connection = null;
         PreparedStatement preparedStatement = null;
@@ -202,7 +173,7 @@ public class MySQLUserRepository extends MySQLAbstractRepository implements User
 
     @Override
     public int updateStatus(int userID, UserStatus userStatus) {
-        String sql = "UPDATE users SET user_status = ? WHERE user_id = ?";
+        String sql = "update users set user_status = ? where user_id = ?";
 
         Connection connection = null;
         PreparedStatement preparedStatement = null;
@@ -225,7 +196,7 @@ public class MySQLUserRepository extends MySQLAbstractRepository implements User
 
     @Override
     public boolean deleteUser(int userID) {
-        String delSql = "DELETE FROM users WHERE user_id = ?";
+        String delSql = "delete from users where user_id = ?";
 
         Connection connection = null;
         PreparedStatement preparedStatement = null;
@@ -253,8 +224,8 @@ public class MySQLUserRepository extends MySQLAbstractRepository implements User
         int checkSize = size <= 0 ? 20 : size;
         int offset = checkPage * checkSize;
 
-        String data = "SELECT * FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?";
-        String count = "SELECT COUNT(*) FROM users";
+        String data = "select * from users order by created_at desc limit ? offset ?";
+        String count = "select count(*) from users";
         List<User> content = new ArrayList<>();
         int total = 0;
 
@@ -271,7 +242,7 @@ public class MySQLUserRepository extends MySQLAbstractRepository implements User
             resultSet = preparedStatement.executeQuery();
 
             while (resultSet.next()) {
-                content.add(getUser(resultSet));
+                content.add(mapUser(resultSet));
             }
 
             preparedStatement = connection.prepareStatement(count);

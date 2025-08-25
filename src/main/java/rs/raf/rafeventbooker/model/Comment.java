@@ -15,12 +15,12 @@ public class Comment {
 
     }
 
-    public Comment(Integer commentID, String commentAuthor, String commentContent, LocalDateTime createdAt, Integer eventID, Integer likeCount, Integer dislikeCount) {
+    public Comment(Integer commentID, Integer eventID, String commentAuthor, String commentContent, LocalDateTime createdAt, Integer likeCount, Integer dislikeCount) {
         this.commentID = commentID;
+        this.eventID = eventID;
         this.commentAuthor = commentAuthor;
         this.commentContent = commentContent;
         this.createdAt = createdAt;
-        this.eventID = eventID;
         this.likeCount = likeCount;
         this.dislikeCount = dislikeCount;
     }

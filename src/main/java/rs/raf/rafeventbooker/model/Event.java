@@ -12,15 +12,17 @@ public class Event {
     private String eventLocation;
     private Integer eventViews;
     private Integer eventAuthor;
-    private List<Tag> eventTags;
     private Integer categoryID;
     private Integer maxCapacity;
+    private Integer likes;
+    private Integer dislikes;
+    private List<Tag> tags;
 
     public Event() {
 
     }
 
-    public Event(Integer eventID, String eventName, String eventDescription, LocalDateTime createdAt, LocalDateTime startTime, String eventLocation, Integer eventViews, Integer eventAuthor, List<Tag> eventTags, Integer categoryID, Integer maxCapacity) {
+    public Event(Integer eventID, String eventName, String eventDescription, LocalDateTime createdAt, LocalDateTime startTime, String eventLocation, Integer eventViews, Integer eventAuthor, Integer categoryID, Integer maxCapacity, Integer likes, Integer dislikes) {
         this.eventID = eventID;
         this.eventName = eventName;
         this.eventDescription = eventDescription;
@@ -29,11 +31,10 @@ public class Event {
         this.eventLocation = eventLocation;
         this.eventViews = eventViews;
         this.eventAuthor = eventAuthor;
-        if (eventTags != null) {
-            this.eventTags = eventTags;
-        }
         this.categoryID = categoryID;
         this.maxCapacity = maxCapacity;
+        this.likes = likes;
+        this.dislikes = dislikes;
     }
 
     public Integer getEventID() {
@@ -100,14 +101,6 @@ public class Event {
         this.eventAuthor = eventAuthor;
     }
 
-    public List<Tag> getEventTags() {
-        return eventTags;
-    }
-
-    public void setEventTags(List<Tag> eventTags) {
-        this.eventTags = eventTags;
-    }
-
     public Integer getCategoryID() {
         return categoryID;
     }
@@ -122,5 +115,29 @@ public class Event {
 
     public void setMaxCapacity(Integer maxCapacity) {
         this.maxCapacity = maxCapacity;
+    }
+
+    public Integer getLikes() {
+        return likes;
+    }
+
+    public void setLikes(Integer likes) {
+        this.likes = likes;
+    }
+
+    public Integer getDislikes() {
+        return dislikes;
+    }
+
+    public void setDislikes(Integer dislikes) {
+        this.dislikes = dislikes;
+    }
+
+    public List<Tag> getTags() {
+        return tags;
+    }
+
+    public void setTags(List<Tag> tags) {
+        this.tags = tags;
     }
 }
