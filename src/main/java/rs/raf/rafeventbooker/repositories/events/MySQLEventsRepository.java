@@ -11,455 +11,446 @@ import java.util.List;
 import java.util.Optional;
 
 public class MySQLEventsRepository extends MySQLAbstractRepository implements EventsRepository {
-    private Event mapEvent(ResultSet resultSet) throws SQLException {
+
+    private Event mapEvent(ResultSet rs) throws SQLException {
         return new Event(
-                resultSet.getInt("event_id"),
-                resultSet.getString("event_title"),
-                resultSet.getString("event_description"),
-                resultSet.getTimestamp("created_at") != null ? resultSet.getTimestamp("created_at").toLocalDateTime() : null,
-                resultSet.getTimestamp("start_at") != null ? resultSet.getTimestamp("created_at").toLocalDateTime() : null,
-                resultSet.getString("event_location"),
-                resultSet.getInt("event_views"),
-                resultSet.getInt("author_id"),
-                resultSet.getInt("category_id"),
-                resultSet.getObject("max_capacity") != null ? resultSet.getInt("max_capacity") : null,
-                resultSet.getInt("likes"),
-                resultSet.getInt("dislikes")
+                rs.getInt("event_id"),
+                rs.getString("event_title"),
+                rs.getString("event_description"),
+                rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toLocalDateTime() : null,
+                rs.getTimestamp("start_at")   != null ? rs.getTimestamp("start_at").toLocalDateTime()   : null, // ✔️
+                rs.getString("event_location"),
+                rs.getInt("event_views"),
+                rs.getInt("author_id"),
+                rs.getInt("category_id"),
+                rs.getObject("max_capacity") != null ? rs.getInt("max_capacity") : null,
+                rs.getInt("likes"),
+                rs.getInt("dislikes")
         );
     }
 
     @Override
     public Optional<Event> getEventByID(int eventID) {
         String sql = "select * from events where event_id = ?";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
+        Connection c = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setInt(1, eventID);
-
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                return Optional.of(mapEvent(resultSet));
-            }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            c = newConnection();
+            ps = c.prepareStatement(sql);
+            ps.setInt(1, eventID);
+            rs = ps.executeQuery();
+            if (rs.next()) return Optional.of(mapEvent(rs));
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            closeResultSet(rs);
+            closeStatement(ps);
+            closeConnection(c);
         }
         return Optional.empty();
     }
 
     @Override
     public Page<Event> list(int page, int size) {
-        int checkSize = size <= 0 ? 20 : size;
-        int safePage = Math.max(1, page);
-        int offset = (safePage - 1) * checkSize;
+        int s = size <= 0 ? 20 : size;
+        int p = Math.max(1, page);
+        int offset = (p - 1) * s;
 
-        String data = "SELECT * FROM events ORDER BY created_at DESC LIMIT ? OFFSET ?";
-        String count = "SELECT COUNT(*) FROM events";
+        String dataSql  = "select * from events order by created_at desc limit ? offset ?";
+        String countSql = "select count(*) from events";
 
         List<Event> content = new ArrayList<>();
         int total = 0;
 
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        Connection c = null;
+        PreparedStatement psData = null, psCount = null;
+        ResultSet rsData = null, rsCount = null;
 
         try {
-            connection = newConnection();
+            c = newConnection();
 
-            preparedStatement = connection.prepareStatement(data);
-            preparedStatement.setInt(1, checkSize);
-            preparedStatement.setInt(2, offset);
-            resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-                content.add(mapEvent(resultSet));
-            }
+            psData = c.prepareStatement(dataSql);
+            psData.setInt(1, s);
+            psData.setInt(2, offset);
+            rsData = psData.executeQuery();
+            while (rsData.next()) content.add(mapEvent(rsData));
 
-            preparedStatement = connection.prepareStatement(count);
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) total = resultSet.getInt(1);
+            psCount = c.prepareStatement(countSql);
+            rsCount = psCount.executeQuery();
+            if (rsCount.next()) total = rsCount.getInt(1);
 
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            closeResultSet(resultSet);
-            closeStatement(preparedStatement);
-            closeConnection(connection);
+            closeResultSet(rsData);
+            closeStatement(psData);
+            closeResultSet(rsCount);
+            closeStatement(psCount);
+            closeConnection(c);
         }
 
-        int totalPages = (int) Math.ceil(total / (double) checkSize);
-        return new Page<>(content, safePage, checkSize, total, totalPages);
+        int totalPages = (int) Math.ceil(total / (double) s);
+        return new Page<>(content, p, s, total, totalPages);
     }
 
     @Override
     public Page<Event> search(String text, int page, int size) {
-        int checkSize = size <= 0 ? 20 : size;
-        int safePage = Math.max(1, page);
-        int offset = (safePage - 1) * checkSize;
+        int s = size <= 0 ? 20 : size;
+        int p = Math.max(1, page);
+        int offset = (p - 1) * s;
 
         String like = "%" + (text == null ? "" : text) + "%";
-        String count = "SELECT COUNT(*) FROM events WHERE event_name LIKE ? OR event_description LIKE ?";
-        String pageSql = "SELECT * FROM events WHERE event_name LIKE ? OR event_description LIKE ? " +
-                "ORDER BY created_at DESC LIMIT ? OFFSET ?";
+        String dataSql  = "select * from events where event_title like ? or event_description like ? " +
+                "order by created_at desc limit ? offset ?";
+        String countSql = "select count(*) from events where event_title like ? or event_description like ?";
 
         List<Event> content = new ArrayList<>();
         int total = 0;
 
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        Connection c = null;
+        PreparedStatement psData = null, psCount = null;
+        ResultSet rsData = null, rsCount = null;
 
         try {
-            connection = newConnection();
+            c = newConnection();
 
-            preparedStatement = connection.prepareStatement(pageSql);
-            preparedStatement.setString(1, like);
-            preparedStatement.setString(2, like);
-            preparedStatement.setInt(3, checkSize);
-            preparedStatement.setInt(4, offset);
-            resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-                content.add(mapEvent(resultSet));
-            }
+            psData = c.prepareStatement(dataSql);
+            psData.setString(1, like);
+            psData.setString(2, like);
+            psData.setInt(3, s);
+            psData.setInt(4, offset);
+            rsData = psData.executeQuery();
+            while (rsData.next()) content.add(mapEvent(rsData));
 
-            preparedStatement = connection.prepareStatement(count);
-            preparedStatement.setString(1, like);
-            preparedStatement.setString(2, like);
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) total = resultSet.getInt(1);
+            psCount = c.prepareStatement(countSql);
+            psCount.setString(1, like);
+            psCount.setString(2, like);
+            rsCount = psCount.executeQuery();
+            if (rsCount.next()) total = rsCount.getInt(1);
 
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            closeResultSet(resultSet);
-            closeStatement(preparedStatement);
-            closeConnection(connection);
+            closeResultSet(rsData);
+            closeStatement(psData);
+            closeResultSet(rsCount);
+            closeStatement(psCount);
+            closeConnection(c);
         }
 
-        int totalPages = (int) Math.ceil(total / (double) checkSize);
-        return new Page<>(content, safePage, checkSize, total, totalPages);
+        int totalPages = (int) Math.ceil(total / (double) s);
+        return new Page<>(content, p, s, total, totalPages);
     }
 
     @Override
     public Page<Event> listByCategory(int categoryId, int page, int size) {
-        int checkSize = size <= 0 ? 20 : size;
-        int safePage = Math.max(1, page);
-        int offset = (safePage - 1) * checkSize;
+        int s = size <= 0 ? 20 : size;
+        int p = Math.max(1, page);
+        int offset = (p - 1) * s;
 
-        String data = "SELECT * FROM events WHERE category_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?";
-        String count = "SELECT COUNT(*) FROM events WHERE category_id = ?";
+        String dataSql  = "select * from events where category_id=? order by created_at desc limit ? offset ?";
+        String countSql = "select count(*) from events where category_id=?";
 
         List<Event> content = new ArrayList<>();
         int total = 0;
 
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        Connection c = null;
+        PreparedStatement psData = null, psCount = null;
+        ResultSet rsData = null, rsCount = null;
 
         try {
-            connection = newConnection();
+            c = newConnection();
 
-            preparedStatement = connection.prepareStatement(data);
-            preparedStatement.setInt(1, categoryId);
-            preparedStatement.setInt(2, checkSize);
-            preparedStatement.setInt(3, offset);
-            resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-                content.add(mapEvent(resultSet));
-            }
+            psData = c.prepareStatement(dataSql);
+            psData.setInt(1, categoryId);
+            psData.setInt(2, s);
+            psData.setInt(3, offset);
+            rsData = psData.executeQuery();
+            while (rsData.next()) content.add(mapEvent(rsData));
 
-            preparedStatement = connection.prepareStatement(count);
-            preparedStatement.setInt(1, categoryId);
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) total = resultSet.getInt(1);
+            psCount = c.prepareStatement(countSql);
+            psCount.setInt(1, categoryId);
+            rsCount = psCount.executeQuery();
+            if (rsCount.next()) total = rsCount.getInt(1);
 
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            closeResultSet(resultSet);
-            closeStatement(preparedStatement);
-            closeConnection(connection);
+            closeResultSet(rsData);
+            closeStatement(psData);
+            closeResultSet(rsCount);
+            closeStatement(psCount);
+            closeConnection(c);
         }
 
-        int totalPages = (int) Math.ceil(total / (double) checkSize);
-        return new Page<>(content, safePage, checkSize, total, totalPages);
+        int totalPages = (int) Math.ceil(total / (double) s);
+        return new Page<>(content, p, s, total, totalPages);
     }
 
     @Override
     public Page<Event> listByTag(String tagName, int page, int size) {
-        int checkSize = size <= 0 ? 20 : size;
-        int safePage = Math.max(1, page);
-        int offset = (safePage - 1) * checkSize;
+        int s = size <= 0 ? 20 : size;
+        int p = Math.max(1, page);
+        int offset = (p - 1) * s;
 
-        String data = "SELECT e.* FROM events e " +
-                "JOIN event_tags et ON e.event_id = et.event_id " +
-                "JOIN tags t ON t.tag_id = et.tag_id " +
-                "WHERE t.tag_name = ? " +
-                "ORDER BY e.created_at DESC " +
-                "LIMIT ? OFFSET ?";
+        String dataSql =
+                "select e.* " +
+                        "from events e " +
+                        "join event_tags et on e.event_id = et.event_id " +
+                        "join tags t on t.tag_id = et.tag_id " +
+                        "where t.tag_name = ? " +
+                        "order by e.created_at desc " +
+                        "limit ? offset ?";
 
-        String count = "SELECT COUNT(*) FROM events e " +
-                "JOIN event_tags et ON e.event_id = et.event_id " +
-                "JOIN tags t ON t.tag_id = et.tag_id " +
-                "WHERE t.tag_name = ?";
+        String countSql =
+                "select count(distinct e.event_id) " +
+                        "from events e " +
+                        "join event_tags et on e.event_id = et.event_id " +
+                        "join tags t on t.tag_id = et.tag_id " +
+                        "where t.tag_name = ?";
 
         List<Event> content = new ArrayList<>();
         int total = 0;
 
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        Connection c = null;
+        PreparedStatement psData = null, psCount = null;
+        ResultSet rsData = null, rsCount = null;
 
         try {
-            connection = newConnection();
+            c = newConnection();
 
-            preparedStatement = connection.prepareStatement(data);
-            preparedStatement.setString(1, tagName);
-            preparedStatement.setInt(2, checkSize);
-            preparedStatement.setInt(3, offset);
-            resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-                content.add(mapEvent(resultSet));
-            }
+            psData = c.prepareStatement(dataSql);
+            psData.setString(1, tagName);
+            psData.setInt(2, s);
+            psData.setInt(3, offset);
+            rsData = psData.executeQuery();
+            while (rsData.next()) content.add(mapEvent(rsData));
 
-            preparedStatement = connection.prepareStatement(count);
-            preparedStatement.setString(1, tagName);
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) total = resultSet.getInt(1);
+            psCount = c.prepareStatement(countSql);
+            psCount.setString(1, tagName);
+            rsCount = psCount.executeQuery();
+            if (rsCount.next()) total = rsCount.getInt(1);
 
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            closeResultSet(resultSet);
-            closeStatement(preparedStatement);
-            closeConnection(connection);
+            closeResultSet(rsData);
+            closeStatement(psData);
+            closeResultSet(rsCount);
+            closeStatement(psCount);
+            closeConnection(c);
         }
 
-        int totalPages = (int) Math.ceil(total / (double) checkSize);
-        return new Page<>(content, safePage, checkSize, total, totalPages);
+        int totalPages = (int) Math.ceil(total / (double) s);
+        return new Page<>(content, p, s, total, totalPages);
     }
-
 
     @Override
     public List<Event> latest(int limit) {
-        String sql = "select * from events order by created_at DESC limit ?";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
-        List<Event> eventList = new ArrayList<>();
-
+        String sql = "select * from events order by created_at desc limit ?";
+        Connection c = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        List<Event> list = new ArrayList<>();
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-
-            preparedStatement.setInt(1, limit);
-
-            resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-                eventList.add(mapEvent(resultSet));
-            }
-
-            return eventList;
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            c = newConnection();
+            ps = c.prepareStatement(sql);
+            ps.setInt(1, limit);
+            rs = ps.executeQuery();
+            while (rs.next()) list.add(mapEvent(rs));
+            return list;
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            closeResultSet(rs);
+            closeStatement(ps);
+            closeConnection(c);
         }
         return List.of();
     }
 
     @Override
     public List<Event> mostViewedLast30Days(int limit) {
-        String sql = "select e.* from events e " +
-                "join (" +
-                "select event_id, sum(1) as v " +
-                "from views_log " +
-                "where viewed_at >= now() - interval 30 day " +
-                "group by event_id" +
-                ") v on v.event_id = e.event_id " +
-                "order by v.v desc " +
-                "limit ?";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
-        List<Event> eventList = new ArrayList<>();
-
+        String sql =
+                "select e.* " +
+                        "from events e " +
+                        "join ( " +
+                        "  select event_id, count(*) as v " +
+                        "  from views_log " +
+                        "  where viewed_at >= now() - interval 30 day " +
+                        "  group by event_id " +
+                        ") v on v.event_id = e.event_id " +
+                        "order by v.v desc " +
+                        "limit ?";
+        Connection c = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        List<Event> list = new ArrayList<>();
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setInt(1, limit);
-
-            resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-                eventList.add(mapEvent(resultSet));
-            }
-
-            return eventList;
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            c = newConnection();
+            ps = c.prepareStatement(sql);
+            ps.setInt(1, limit);
+            rs = ps.executeQuery();
+            while (rs.next()) list.add(mapEvent(rs));
+            return list;
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            closeResultSet(rs);
+            closeStatement(ps);
+            closeConnection(c);
         }
         return List.of();
     }
 
     @Override
     public List<Event> mostReacted(int limit) {
-        String sql = "select e.* from events e order by (e.likes + e.dislikes) desc, e.created_at desc limit ?";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
-        List<Event> eventList = new ArrayList<>();
-
+        String sql = "select * from events order by (likes + dislikes) desc, created_at desc limit ?";
+        Connection c = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        List<Event> list = new ArrayList<>();
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-
-            preparedStatement.setInt(1, limit);
-
-            resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-                eventList.add(mapEvent(resultSet));
-            }
-
-            return eventList;
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            c = newConnection();
+            ps = c.prepareStatement(sql);
+            ps.setInt(1, limit);
+            rs = ps.executeQuery();
+            while (rs.next()) list.add(mapEvent(rs));
+            return list;
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            closeResultSet(rs);
+            closeStatement(ps);
+            closeConnection(c);
         }
         return List.of();
     }
 
     @Override
     public List<Event> similarByTags(int eventID, int limit) {
-        String sql = "select distinct * from event_tags et1 join event_tags et2 on et1.tag_id = et2.tag_id and et2.event_id <> et1.event_id join events e on e.event_id = et2.event_id where et1.event_id = ? order by e.created_at desc limit ?";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        String sql =
+                "select e.* " +
+                        "from events e " +
+                        "join ( " +
+                        "  select et2.event_id, count(*) as common_tags " +
+                        "  from event_tags et1 " +
+                        "  join event_tags et2 on et2.tag_id = et1.tag_id and et2.event_id <> et1.event_id " +
+                        "  where et1.event_id = ? " +
+                        "  group by et2.event_id " +
+                        "  order by common_tags desc " +
+                        "  limit ? " +
+                        ") x on x.event_id = e.event_id " +
+                        "order by x.common_tags desc, e.created_at desc";
 
-        List<Event> eventList = new ArrayList<>();
-
+        Connection c = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        List<Event> list = new ArrayList<>();
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setInt(1, eventID);
-            preparedStatement.setInt(2, limit);
-
-            resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-                eventList.add(mapEvent(resultSet));
-            }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            c = newConnection();
+            ps = c.prepareStatement(sql);
+            ps.setInt(1, eventID);
+            ps.setInt(2, limit);
+            rs = ps.executeQuery();
+            while (rs.next()) list.add(mapEvent(rs));
+            return list;
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            closeResultSet(rs);
+            closeStatement(ps);
+            closeConnection(c);
         }
         return List.of();
     }
 
+
     @Override
-    public int create(Event event, List<String> tags) {
-        String sql = "insert into events(event_name, event_description, created_at, start_at, event_location, event_views, author_id, category_id, max_capacity, likes, dislikes) values (?,?,?,?,?,0,?,?,?,0,0)";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+    public int create(Event e, List<String> tags) {
+        String sql = "insert into events(event_title, event_description, created_at, start_at, event_location, event_views, author_id, category_id, max_capacity, likes, dislikes) " +
+                "values (?,?,?,?,?,0,?,?,?,0,0)";
+
+        Connection c = null;
+        PreparedStatement ps = null;
+        ResultSet keys = null;
 
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
+            c = newConnection();
+            c.setAutoCommit(false);
 
-            preparedStatement.setString(1, event.getEventName());
-            preparedStatement.setString(2, event.getEventDescription());
-            preparedStatement.setTimestamp(3, Timestamp.valueOf(event.getCreatedAt()));
-            preparedStatement.setTimestamp(4, Timestamp.valueOf(event.getStartTime()));
-            preparedStatement.setString(5, event.getEventLocation());
-            preparedStatement.setInt(6, event.getEventAuthor());
-            preparedStatement.setInt(7, event.getCategoryID());
-            if(event.getMaxCapacity() == null) {
-                preparedStatement.setNull(8, Types.INTEGER);
-            }
-            else {
-                preparedStatement.setInt(8, event.getMaxCapacity());
-            }
-            preparedStatement.executeUpdate();
+            ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, e.getEventName());
+            ps.setString(2, e.getEventDescription());
+            ps.setTimestamp(3, Timestamp.valueOf(e.getCreatedAt()));
+            ps.setTimestamp(4, Timestamp.valueOf(e.getStartTime()));
+            ps.setString(5, e.getEventLocation());
+            ps.setInt(6, e.getEventAuthor());
+            ps.setInt(7, e.getCategoryID());
+            if (e.getMaxCapacity() == null) ps.setNull(8, Types.INTEGER); else ps.setInt(8, e.getMaxCapacity());
+            ps.executeUpdate();
 
-            resultSet = preparedStatement.getGeneratedKeys();
-            if (resultSet.next()) {
-                event.setEventID(resultSet.getInt(1));
-                return resultSet.getInt(1);
-            }
+            keys = ps.getGeneratedKeys();
+            if (!keys.next()) { c.rollback(); return -1; }
+            int id = keys.getInt(1);
+            e.setEventID(id);
 
-            upsertTagsAndBindings(event.getEventID(), tags);
-            connection.commit();
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            upsertTagsAndBindings(c, id, tags);
+
+            c.commit();
+            return id;
+        } catch (SQLException ex) {
+            System.err.println(ex.getMessage());
+            if (c != null) try { c.rollback(); } catch (SQLException ignore) {}
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            if (c != null) try { c.setAutoCommit(true); } catch (SQLException ignore) {}
+            closeResultSet(keys);
+            closeStatement(ps);
+            closeConnection(c);
         }
         return -1;
     }
 
     @Override
     public int update(Event e, List<String> tags) {
-        String sql = "update events set event_name = ?, event_description = ?, start_at = ?, event_location = ?, category_id = ?, max_capacity = ? where event_id = ?";
-        String delSql = "delete from event_tags where event_id = ?";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        String upSql  = "update events set event_title=?, event_description=?, start_at=?, event_location=?, category_id=?, max_capacity=? where event_id=?";
+        String delSql = "delete from event_tags where event_id=?";
+
+        Connection c = null;
+        PreparedStatement psUp = null, psDel = null;
 
         try {
-            connection = newConnection();
-            connection.setAutoCommit(false);
+            c = newConnection();
+            c.setAutoCommit(false);
 
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setString(1, e.getEventName());
-            preparedStatement.setString(2, e.getEventDescription());
-            preparedStatement.setTimestamp(3, Timestamp.valueOf(e.getStartTime()));
-            preparedStatement.setString(4, e.getEventLocation());
-            preparedStatement.setInt(5, e.getCategoryID());
-            if(e.getMaxCapacity() == null) {
-                preparedStatement.setNull(6, Types.INTEGER);
-            } else  {
-                preparedStatement.setInt(6, e.getMaxCapacity());
-            }
-            preparedStatement.setInt(7, e.getEventID());
-            if (preparedStatement.executeUpdate() != 1) {
-                connection.rollback();
-                return -1;
-            }
+            psUp = c.prepareStatement(upSql);
+            psUp.setString(1, e.getEventName());
+            psUp.setString(2, e.getEventDescription());
+            psUp.setTimestamp(3, Timestamp.valueOf(e.getStartTime()));
+            psUp.setString(4, e.getEventLocation());
+            psUp.setInt(5, e.getCategoryID());
+            if (e.getMaxCapacity() == null) psUp.setNull(6, Types.INTEGER); else psUp.setInt(6, e.getMaxCapacity());
+            psUp.setInt(7, e.getEventID());
 
-            preparedStatement = connection.prepareStatement(delSql);
-            preparedStatement.setInt(1, e.getEventID());
+            if (psUp.executeUpdate() != 1) { c.rollback(); return -1; }
 
-            upsertTagsAndBindings(e.getEventID(), tags);
-            connection.commit();
-            return 0;
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            psDel = c.prepareStatement(delSql);
+            psDel.setInt(1, e.getEventID());
+            psDel.executeUpdate();
+
+            upsertTagsAndBindings(c, e.getEventID(), tags);
+
+            c.commit();
+            return 1;
+        } catch (SQLException ex) {
+            System.err.println(ex.getMessage());
+            if (c != null) try { c.rollback(); } catch (SQLException ignore) {}
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            if (c != null) try { c.setAutoCommit(true); } catch (SQLException ignore) {}
+            closeStatement(psDel);
+            closeStatement(psUp);
+            closeConnection(c);
         }
         return -1;
     }
@@ -467,170 +458,130 @@ public class MySQLEventsRepository extends MySQLAbstractRepository implements Ev
     @Override
     public boolean delete(int eventID) {
         String sql = "delete from events where event_id = ?";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
+        Connection c = null;
+        PreparedStatement ps = null;
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setInt(1, eventID);
-
-            return preparedStatement.executeUpdate() == 1;
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            c = newConnection();
+            ps = c.prepareStatement(sql);
+            ps.setInt(1, eventID);
+            return ps.executeUpdate() == 1;
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            closeStatement(ps);
+            closeConnection(c);
         }
         return false;
     }
 
     @Override
     public boolean incrementViewsOnce(int eventID, String visitorID) {
-        String check = "select 1 from views_log where event_id = ? and visitor_id = ?";
-        String insertIntoViews = "insert into views_log (event_id, visitor_id, viewed_at) values (?, ?, now())";
-        String incrementViews = "update events set event_views = event_views + 1 where event_id = ?";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        String insView = "insert ignore into views_log(event_id, visitor_id, viewed_at) values(?, ?, now())";
+        String inc     = "update events set event_views = event_views + 1 where event_id = ?";
+
+        Connection c = null;
+        PreparedStatement psIns = null, psInc = null;
 
         try {
-            connection = newConnection();
-            connection.setAutoCommit(false);
+            c = newConnection();
+            c.setAutoCommit(false);
 
-            preparedStatement = connection.prepareStatement(check);
-            preparedStatement.setInt(1, eventID);
-            preparedStatement.setString(2, visitorID);
-            resultSet = preparedStatement.executeQuery();
+            psIns = c.prepareStatement(insView);
+            psIns.setInt(1, eventID);
+            psIns.setString(2, visitorID);
+            int affected = psIns.executeUpdate();
 
-            if (resultSet.next()) {
-                connection.rollback();
-                return false;
+            if (affected == 1) {
+                psInc = c.prepareStatement(inc);
+                psInc.setInt(1, eventID);
+                psInc.executeUpdate();
             }
 
-            preparedStatement = connection.prepareStatement(insertIntoViews);
-            preparedStatement.setInt(1, eventID);
-            preparedStatement.setString(2, visitorID);
-            preparedStatement.executeUpdate();
-
-            preparedStatement = connection.prepareStatement(incrementViews);
-            preparedStatement.setInt(1, eventID);
-            preparedStatement.executeUpdate();
-
-            connection.commit();
-            return true;
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            c.commit();
+            return affected == 1;
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+            if (c != null) try { c.rollback(); } catch (SQLException ignore) {}
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            if (c != null) try { c.setAutoCommit(true); } catch (SQLException ignore) {}
+            closeStatement(psInc);
+            closeStatement(psIns);
+            closeConnection(c);
         }
-
         return false;
     }
 
     @Override
-    public boolean like(int eventID, String visitorID) {
-        return reactToEvent(eventID, visitorID, 1);
-    }
+    public boolean like(int eventID, String visitorID) { return reactToEvent(eventID, visitorID, 1); }
 
     @Override
-    public boolean dislike(int eventID, String visitorID) {
-        return reactToEvent(eventID, visitorID, -1);
-    }
+    public boolean dislike(int eventID, String visitorID) { return reactToEvent(eventID, visitorID, -1); }
 
     private boolean reactToEvent(int eventID, String visitorID, int value) {
-        String check = "select 1 from event_reactions where event_id = ? and visitor_id = ?";
-        String insert = "insert into event_reactions(event_id, visitor_id, reaction, reacted_at) VALUES (?, ?, ?, now())";
-        String increase = "";
-        if (value > 0) {
-            increase = "update events set likes = likes + 1 where event_id = ?";
-        } else {
-            increase = "update events set dislikes = dislikes + 1 where event_id = ?";
-        }
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        String ins = "insert ignore into event_reactions(event_id, visitor_id, reaction, reacted_at) values(?, ?, ?, now())";
+        String incLike = "update events set likes = likes + 1 where event_id = ?";
+        String incDislike = "update events set dislikes = dislikes + 1 where event_id = ?";
+
+        Connection c = null;
+        PreparedStatement psIns = null, psInc = null;
 
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(check);
-            preparedStatement.setInt(1, eventID);
-            preparedStatement.setString(2, visitorID);
+            c = newConnection();
+            c.setAutoCommit(false);
 
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                connection.rollback();
+            psIns = c.prepareStatement(ins);
+            psIns.setInt(1, eventID);
+            psIns.setString(2, visitorID);
+            psIns.setInt(3, value);
+            int affected = psIns.executeUpdate();
+
+            if (affected == 0) {
+                c.rollback();
                 return false;
             }
 
-            preparedStatement = connection.prepareStatement(insert);
-            preparedStatement.setInt(1, eventID);
-            preparedStatement.setString(2, visitorID);
-            preparedStatement.setInt(3, value);
+            psInc = c.prepareStatement(value > 0 ? incLike : incDislike);
+            psInc.setInt(1, eventID);
+            psInc.executeUpdate();
 
-            preparedStatement = connection.prepareStatement(increase);
+            c.commit();
             return true;
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+            if (c != null) try {
+                c.rollback();
+            } catch (SQLException ignore) {
+            }
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            if (c != null) try {
+                c.setAutoCommit(true);
+            } catch (SQLException ignore) {
+            }
+            closeStatement(psInc);
+            closeStatement(psIns);
+            closeConnection(c);
         }
-
         return false;
-    }
-
-    @Override
-    public int countRsvp(int eventID) {
-        String sql = "SELECT count(*) from rsvps where event_id = ?";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
-        try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setInt(1, eventID);
-
-            resultSet = preparedStatement.executeQuery();
-            resultSet.next();
-            return resultSet.getInt(1);
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
-        } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
-        }
-        return 0;
     }
 
     @Override
     public int capacityOf(int eventID) {
         String sql = "select coalesce(max_capacity, 0) from events where event_id = ?";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
+        Connection c = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setInt(1, eventID);
-
-            resultSet = preparedStatement.executeQuery();
-            resultSet.next();
-            return resultSet.getInt(1);
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            c = newConnection();
+            ps = c.prepareStatement(sql);
+            ps.setInt(1, eventID);
+            rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            closeResultSet(rs);
+            closeStatement(ps);
+            closeConnection(c);
         }
         return 0;
     }
@@ -638,71 +589,63 @@ public class MySQLEventsRepository extends MySQLAbstractRepository implements Ev
     @Override
     public boolean setStartAt(int eventID, LocalDateTime startAt) {
         String sql = "update events set start_at = ? where event_id = ?";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
+        Connection c = null;
+        PreparedStatement ps = null;
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setTimestamp(1, Timestamp.valueOf(startAt));
-            preparedStatement.setInt(2, eventID);
-            return preparedStatement.executeUpdate() == 1;
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            c = newConnection();
+            ps = c.prepareStatement(sql);
+            ps.setTimestamp(1, Timestamp.valueOf(startAt));
+            ps.setInt(2, eventID);
+            return ps.executeUpdate() == 1;
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            closeStatement(ps);
+            closeConnection(c);
         }
         return false;
     }
 
-    private void upsertTagsAndBindings(int eventID, List<String> tags) {
-        if (tags == null || tags.isEmpty()) {
-            return;
-        }
+    private void upsertTagsAndBindings(Connection c, int eventID, List<String> tags) throws SQLException {
+        if (tags == null || tags.isEmpty()) return;
 
-        String insertTag = "insert into tags(tag_name) values (?) on duplicate key update tag_name = tag_name";
-        String selectTag = "select tag_name from tags where tag_name = ?";
-        String bindTag = "insert ignore into event_tags(event_id, tag_id) values (?, ?)";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        String insTag = "insert into tags(tag_name) values (?) on duplicate key update tag_name = tag_name";
+        String selTag = "select tag_id from tags where tag_name = ?";
+        String bind   = "insert ignore into event_tags(event_id, tag_id) values (?, ?)";
 
+        PreparedStatement ps = null;
+        ResultSet rs = null;
         try {
-            connection = newConnection();
-            for (String rawTagName : tags) {
-                String tagName = normalize(rawTagName);
+            for (String raw : tags) {
+                String t = normalize(raw);
+                if (t == null || t.isBlank()) continue;
 
-                preparedStatement = connection.prepareStatement(insertTag);
-                preparedStatement.setString(1, tagName);
-                preparedStatement.executeUpdate();
+                ps = c.prepareStatement(insTag);
+                ps.setString(1, t);
+                ps.executeUpdate();
+                closeStatement(ps); ps = null;
 
-                int tagID = 0;
-                preparedStatement = connection.prepareStatement(selectTag);
-                preparedStatement.setString(1, tagName);
+                int tagId = 0;
+                ps = c.prepareStatement(selTag);
+                ps.setString(1, t);
+                rs = ps.executeQuery();
+                if (rs.next()) tagId = rs.getInt(1);
+                closeResultSet(rs); rs = null;
+                closeStatement(ps); ps = null;
 
-                resultSet = preparedStatement.executeQuery();
-                resultSet.next();
-                tagID = resultSet.getInt(1);
-
-                preparedStatement = connection.prepareStatement(bindTag);
-                preparedStatement.setInt(1, eventID);
-                preparedStatement.setInt(2, tagID);
-                preparedStatement.executeUpdate();
+                ps = c.prepareStatement(bind);
+                ps.setInt(1, eventID);
+                ps.setInt(2, tagId);
+                ps.executeUpdate();
+                closeStatement(ps); ps = null;
             }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            closeResultSet(rs);
+            closeStatement(ps);
         }
     }
 
     private String normalize(String tagName) {
         return tagName == null ? null : tagName.trim().toLowerCase();
     }
-
 }

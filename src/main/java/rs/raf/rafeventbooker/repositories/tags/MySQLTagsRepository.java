@@ -3,154 +3,129 @@ package rs.raf.rafeventbooker.repositories.tags;
 import rs.raf.rafeventbooker.model.Tag;
 import rs.raf.rafeventbooker.repositories.MySQLAbstractRepository;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 public class MySQLTagsRepository extends MySQLAbstractRepository implements TagsRepository {
-    private Tag mapTag(ResultSet resultSet) throws SQLException {
+
+    private Tag mapTag(ResultSet rs) throws SQLException {
         return new Tag(
-                resultSet.getInt("tag_id"),
-                resultSet.getString("tag_name")
+                rs.getInt("tag_id"),
+                rs.getString("tag_name")
         );
     }
 
     @Override
     public Optional<Tag> getTagByID(int tagID) {
-        String sql = "select * from tags where tag_id = ?";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
+        String sql = "select tag_id, tag_name from tags where tag_id = ?";
+        Connection c = null; PreparedStatement ps = null; ResultSet rs = null;
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setInt(1, tagID);
-
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                return Optional.of(mapTag(resultSet));
-            }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            c = newConnection();
+            ps = c.prepareStatement(sql);
+            ps.setInt(1, tagID);
+            rs = ps.executeQuery();
+            if (rs.next()) return Optional.of(mapTag(rs));
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            this.closeResultSet(rs);
+            this.closeStatement(ps);
+            this.closeConnection(c);
         }
         return Optional.empty();
     }
 
     @Override
     public Optional<Tag> getTagByName(String tagName) {
-        String sql = "select * from tags where tag_name = ?";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
+        String sql = "select tag_id, tag_name from tags where tag_name = ? limit 1";
+        Connection c = null; PreparedStatement ps = null; ResultSet rs = null;
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setString(1, tagName);
-
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                return Optional.of(mapTag(resultSet));
-            }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            c = newConnection();
+            ps = c.prepareStatement(sql);
+            ps.setString(1, normalize(tagName));
+            rs = ps.executeQuery();
+            if (rs.next()) return Optional.of(mapTag(rs));
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            this.closeResultSet(rs);
+            this.closeStatement(ps);
+            this.closeConnection(c);
         }
         return Optional.empty();
     }
 
     @Override
     public List<Tag> getAllTags() {
-        String sql = "select * from tags order by tag_name";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
+        String sql = "select tag_id, tag_name from tags order by tag_name";
+        Connection c = null; PreparedStatement ps = null; ResultSet rs = null;
         List<Tag> tags = new ArrayList<>();
-
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            resultSet = preparedStatement.executeQuery();
-
-            while (resultSet.next()) {
-                tags.add(mapTag(resultSet));
-            }
-
+            c = newConnection();
+            ps = c.prepareStatement(sql);
+            rs = ps.executeQuery();
+            while (rs.next()) tags.add(mapTag(rs));
             return tags;
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            this.closeResultSet(rs);
+            this.closeStatement(ps);
+            this.closeConnection(c);
         }
         return List.of();
     }
 
     @Override
     public int createTag(String tagName) {
-        String sql = "insert into tags (tag_name) values (?) on duplicate key update tag_name = tag_name";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
+        String sql = "insert into tags(tag_name) values (?) " +
+                "on duplicate key update tag_id = last_insert_id(tag_id)";
+        Connection c = null; PreparedStatement ps = null; ResultSet keys = null;
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setString(1, normalize(tagName));
+            String norm = normalize(tagName);
+            if (norm == null || norm.isBlank()) return -1;
 
-            preparedStatement.getGeneratedKeys();
-            if (resultSet.next()) {
-                return resultSet.getInt(1);
-            }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            c = newConnection();
+            ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, norm);
+            ps.executeUpdate();
+
+            keys = ps.getGeneratedKeys();
+            if (keys.next()) return keys.getInt(1);
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            this.closeResultSet(keys);
+            this.closeStatement(ps);
+            this.closeConnection(c);
         }
         return -1;
     }
 
     @Override
     public List<String> getTagNamesForEvent(int eventID) {
-        String sql = "select t.tag_name from tags t join event_tags et on t.tag_id = et.tag_id where et.event_id = ? order by t.tag_name";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
+        String sql = "select t.tag_name " +
+                "from tags t " +
+                "join event_tags et on t.tag_id = et.tag_id " +
+                "where et.event_id = ? " +
+                "order by t.tag_name";
+        Connection c = null; PreparedStatement ps = null; ResultSet rs = null;
         List<String> tagNames = new ArrayList<>();
-
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setInt(1, eventID);
-
-            resultSet = preparedStatement.executeQuery();
-
-            while (resultSet.next()) {
-                tagNames.add(resultSet.getString(1));
-            }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            c = newConnection();
+            ps = c.prepareStatement(sql);
+            ps.setInt(1, eventID);
+            rs = ps.executeQuery();
+            while (rs.next()) tagNames.add(rs.getString(1));
+            return tagNames;
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            this.closeResultSet(rs);
+            this.closeStatement(ps);
+            this.closeConnection(c);
         }
         return List.of();
     }

@@ -10,202 +10,204 @@ import java.util.List;
 import java.util.Optional;
 
 public class MySQLCommentRepository extends MySQLAbstractRepository implements CommentRepository {
-    private Comment mapComment(ResultSet resultSet) throws SQLException {
+
+    private Comment mapComment(ResultSet rs) throws SQLException {
         return new Comment(
-                resultSet.getInt("comment_id"),
-                resultSet.getInt("event_id"),
-                resultSet.getString("author_name"),
-                resultSet.getString("comment_content"),
-                resultSet.getTimestamp("created_at").toLocalDateTime(),
-                resultSet.getInt("likes"),
-                resultSet.getInt("dislikes")
+                rs.getInt("comment_id"),
+                rs.getInt("event_id"),
+                rs.getString("author_name"),
+                rs.getString("comment_content"),
+                rs.getTimestamp("created_at").toLocalDateTime(),
+                rs.getInt("likes"),
+                rs.getInt("dislikes")
         );
     }
 
     @Override
     public Optional<Comment> getCommentById(int commentID) {
-        String sql = "select * from comments where comment_id = ?";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
+        String sql = "select comment_id, event_id, author_name, comment_content, created_at, likes, dislikes from comments where comment_id = ?";
+        Connection c = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setInt(1, commentID);
-
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                return Optional.of(this.mapComment(resultSet));
-            }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            c = newConnection();
+            ps = c.prepareStatement(sql);
+            ps.setInt(1, commentID);
+            rs = ps.executeQuery();
+            if (rs.next()) return Optional.of(mapComment(rs));
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            this.closeResultSet(rs);
+            this.closeStatement(ps);
+            this.closeConnection(c);
         }
-
         return Optional.empty();
     }
 
     @Override
     public Page<Comment> getCommentsForEvent(int eventID, int page, int size) {
-        int checkSize = size <= 0 ? 20 : size;
-        int safePage = Math.max(1, page);
-        int offset = (safePage - 1) * checkSize;
+        int s = size <= 0 ? 20 : size;
+        int p = Math.max(1, page);
+        int offset = (p - 1) * s;
 
-        String count = "SELECT COUNT(*) FROM comments WHERE event_id=?";
-        String data = "SELECT * FROM comments WHERE event_id=? ORDER BY created_at DESC LIMIT ? OFFSET ?";
+        String dataSql  = "select comment_id, event_id, author_name, comment_content, created_at, likes, dislikes " +
+                "from comments where event_id=? order by created_at desc limit ? offset ?";
+        String countSql = "select count(*) from comments where event_id=?";
 
         List<Comment> content = new ArrayList<>();
         int total = 0;
 
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        Connection c = null;
+        PreparedStatement psData = null, psCount = null;
+        ResultSet rsData = null, rsCount = null;
 
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(data);
-            preparedStatement.setInt(1, eventID);
-            preparedStatement.setInt(2, checkSize);
-            preparedStatement.setInt(3, offset);
+            c = newConnection();
 
-            resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-                content.add(this.mapComment(resultSet));
-            }
+            psData = c.prepareStatement(dataSql);
+            psData.setInt(1, eventID);
+            psData.setInt(2, s);
+            psData.setInt(3, offset);
+            rsData = psData.executeQuery();
+            while (rsData.next()) content.add(mapComment(rsData));
 
-            preparedStatement = connection.prepareStatement(count);
-            preparedStatement.setInt(1, eventID);
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                total = resultSet.getInt(1);
-            }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            psCount = c.prepareStatement(countSql);
+            psCount.setInt(1, eventID);
+            rsCount = psCount.executeQuery();
+            if (rsCount.next()) total = rsCount.getInt(1);
+
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            this.closeResultSet(rsData);
+            this.closeStatement(psData);
+            this.closeResultSet(rsCount);
+            this.closeStatement(psCount);
+            this.closeConnection(c);
         }
 
-        int totalPages = (int) Math.ceil((double) total/checkSize);
-        return new Page<>(content, safePage, checkSize, total, totalPages);
+        int totalPages = (int)Math.ceil((double)total / s);
+        return new Page<>(content, p, s, total, totalPages);
     }
 
     @Override
     public int createComment(Comment comment) {
-        String sql="INSERT INTO comments(event_id, author_name, comment_content, created_at, likes, dislikes) VALUES(?,?,?,?,0,0)";
+        String sql = "insert into comments(event_id, author_name, comment_content, created_at, likes, dislikes) " +
+                "values(?, ?, ?, ?, 0, 0)";
 
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-
+        Connection c = null;
+        PreparedStatement ps = null;
+        ResultSet keys = null;
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
+            c = newConnection();
+            ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setInt(1, comment.getEventID());
+            ps.setString(2, comment.getCommentAuthor());
+            ps.setString(3, comment.getCommentContent());
+            ps.setTimestamp(4, Timestamp.valueOf(comment.getCreatedAt()));
+            ps.executeUpdate();
 
-            preparedStatement.setInt(1, comment.getEventID());
-            preparedStatement.setString(2, comment.getCommentAuthor());
-            preparedStatement.setString(3, comment.getCommentContent());
-            preparedStatement.setTimestamp(4, Timestamp.valueOf(comment.getCreatedAt()));
-            preparedStatement.executeUpdate();
-
-            resultSet = preparedStatement.getGeneratedKeys();
-            if (resultSet.next()) {
-                return resultSet.getInt(1);
-            }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            keys = ps.getGeneratedKeys();
+            if (keys.next()) return keys.getInt(1);
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            this.closeResultSet(keys);
+            this.closeStatement(ps);
+            this.closeConnection(c);
         }
-
         return -1;
+    }
+
+    @Override
+    public boolean updateCommentContent(int commentID, String content) {
+        String sql = "update comments set comment_content = ? where comment_id = ?";
+        Connection c = null;
+        PreparedStatement ps = null;
+        try {
+            c = newConnection();
+            ps = c.prepareStatement(sql);
+            ps.setString(1, content);
+            ps.setInt(2, commentID);
+            return ps.executeUpdate() == 1;
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+        } finally {
+            this.closeStatement(ps);
+            this.closeConnection(c);
+        }
+        return false;
     }
 
     @Override
     public boolean deleteComment(int commentID) {
         String sql = "delete from comments where comment_id = ?";
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-
+        Connection c = null;
+        PreparedStatement ps = null;
         try {
-            connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setInt(1, commentID);
-
-            return preparedStatement.executeUpdate() == 0;
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            c = newConnection();
+            ps = c.prepareStatement(sql);
+            ps.setInt(1, commentID);
+            return ps.executeUpdate() == 1;
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
+            this.closeStatement(ps);
+            this.closeConnection(c);
         }
-
         return false;
     }
 
     @Override
-    public boolean like(int commentID, String visitorID) {
-        return reactToComment(commentID, visitorID, 1);
-    }
+    public boolean like(int commentID, String visitorID) { return reactToComment(commentID, visitorID, 1); }
 
     @Override
-    public boolean dislike(int commentID, String visitorID) {
-        return reactToComment(commentID, visitorID, -1);
-    }
+    public boolean dislike(int commentID, String visitorID) { return reactToComment(commentID, visitorID, -1); }
 
     private boolean reactToComment(int commentID, String visitorID, int value) {
-        String check = "select 1 from comment_reactions where comment_id = ? and visitor_id = ?";
-        String insert = "insert into comment_reactions (comment_id, visitor_id, reaction, reacted_at) values (?, ?, ?, now())";
-        String increase = "";
-        if (value > 0) {
-            increase = "update comments set likes = likes + 1 where comment_id = ?";
-        } else {
-            increase = "update comments set dislikes = dislikes + 1 where comment_id = ?";
-        }
+        String insert = "insert ignore into comment_reactions(comment_id, visitor_id, reaction, reacted_at) values(?, ?, ?, now())";
+        String incLike     = "update comments set likes = likes + 1 where comment_id = ?";
+        String incDislike  = "update comments set dislikes = dislikes + 1 where comment_id = ?";
 
-        Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        Connection c = null;
+        PreparedStatement psIns = null, psInc = null;
 
         try {
-            connection = newConnection();
-            connection.setAutoCommit(false);
+            c = newConnection();
+            c.setAutoCommit(false);
 
-            preparedStatement = connection.prepareStatement(check);
-            preparedStatement.setInt(1, commentID);
-            preparedStatement.setString(2, visitorID);
+            psIns = c.prepareStatement(insert);
+            psIns.setInt(1, commentID);
+            psIns.setString(2, visitorID);
+            psIns.setInt(3, value);
+            int affected = psIns.executeUpdate();
 
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                connection.rollback();
+            if (affected == 0) {
+                c.rollback();
                 return false;
             }
 
-            preparedStatement = connection.prepareStatement(insert);
-            preparedStatement.setInt(1, commentID);
-            preparedStatement.setString(2, visitorID);
-            preparedStatement.setInt(3, value);
-            preparedStatement.executeUpdate();
+            psInc = c.prepareStatement(value > 0 ? incLike : incDislike);
+            psInc.setInt(1, commentID);
+            psInc.executeUpdate();
 
-            preparedStatement = connection.prepareStatement(increase);
-            preparedStatement.setInt(1, commentID);
-            preparedStatement.executeUpdate();
+            c.commit();
             return true;
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
-        } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
-            this.closeConnection(connection);
-        }
 
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+            if (c != null) {
+                try { c.rollback(); } catch (SQLException ignore) {}
+            }
+        } finally {
+            if (c != null) {
+                try { c.setAutoCommit(true); } catch (SQLException ignore) {}
+            }
+            this.closeStatement(psInc);
+            this.closeStatement(psIns);
+            this.closeConnection(c);
+        }
         return false;
     }
 }

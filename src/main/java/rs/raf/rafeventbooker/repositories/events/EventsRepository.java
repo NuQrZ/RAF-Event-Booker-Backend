@@ -23,7 +23,6 @@ public interface EventsRepository {
     boolean incrementViewsOnce(int eventID, String visitorID);
     boolean like(int eventID, String visitorID);
     boolean dislike(int eventID, String visitorID);
-    int countRsvp(int eventID);
     int capacityOf(int eventID);
     boolean setStartAt(int eventID, LocalDateTime startAt);
 }

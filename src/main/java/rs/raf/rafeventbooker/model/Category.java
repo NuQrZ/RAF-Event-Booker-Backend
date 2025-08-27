@@ -2,16 +2,16 @@ package rs.raf.rafeventbooker.model;
 
 public class Category {
     private Integer categoryID;
-    private String categoryname;
+    private String categoryName;
     private String categoryDescription;
 
     public Category() {
 
     }
 
-    public Category(Integer categoryID, String categoryname, String categoryDescription) {
+    public Category(Integer categoryID, String categoryName, String categoryDescription) {
         this.categoryID = categoryID;
-        this.categoryname = categoryname;
+        this.categoryName = categoryName;
         this.categoryDescription = categoryDescription;
     }
 
@@ -23,12 +23,12 @@ public class Category {
         this.categoryID = categoryID;
     }
 
-    public String getCategoryname() {
-        return categoryname;
+    public String getCategoryName() {
+        return categoryName;
     }
 
-    public void setCategoryname(String categoryname) {
-        this.categoryname = categoryname;
+    public void setCategoryName(String categoryname) {
+        this.categoryName = categoryname;
     }
 
     public String getCategoryDescription() {

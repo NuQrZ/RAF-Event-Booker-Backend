@@ -18,10 +18,10 @@ import javax.ws.rs.core.UriInfo;
 import java.net.URI;
 import java.util.Map;
 
-@Path("/users")
+@Path("/ems/users")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class UserResource {
+public class UsersResource {
     @Inject
     private UserService userService;
 

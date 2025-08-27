@@ -4,69 +4,66 @@ import rs.raf.rafeventbooker.model.Category;
 import rs.raf.rafeventbooker.model.Page;
 import rs.raf.rafeventbooker.repositories.MySQLAbstractRepository;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 public class MySQLCategoriesRepository extends MySQLAbstractRepository implements CategoriesRepository {
-    private Category mapCategory(java.sql.ResultSet resultSet) throws SQLException {
+
+    private Category mapCategory(ResultSet rs) throws SQLException {
         return new Category(
-                resultSet.getInt("categoryID"),
-                resultSet.getString("categoryName"),
-                resultSet.getString("categoryDescription")
+                rs.getInt("category_id"),
+                rs.getString("category_name"),
+                rs.getString("category_description")
         );
     }
 
     @Override
     public Optional<Category> getCategoryByID(int categoryID) {
-        String sql = "select * from categories where category_id = ?";
+        String sql = "select category_id, category_name, category_description from categories where category_id = ?";
         Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
 
         try {
             connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setInt(1,  categoryID);
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                return Optional.of(mapCategory(resultSet));
+            ps = connection.prepareStatement(sql);
+            ps.setInt(1, categoryID);
+            rs = ps.executeQuery();
+            if (rs.next()) {
+                return Optional.of(mapCategory(rs));
             }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
+            this.closeResultSet(rs);
+            this.closeStatement(ps);
             this.closeConnection(connection);
         }
-
         return Optional.empty();
     }
 
     @Override
     public Optional<Category> getCategoryByName(String categoryName) {
-        String sql = "select * from categories where category_name = ?";
+        String sql = "select category_id, category_name, category_description from categories where category_name = ?";
         Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
 
         try {
             connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setString(1, categoryName);
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                return Optional.of(mapCategory(resultSet));
+            ps = connection.prepareStatement(sql);
+            ps.setString(1, categoryName);
+            rs = ps.executeQuery();
+            if (rs.next()) {
+                return Optional.of(mapCategory(rs));
             }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
+            this.closeResultSet(rs);
+            this.closeStatement(ps);
             this.closeConnection(connection);
         }
         return Optional.empty();
@@ -74,44 +71,53 @@ public class MySQLCategoriesRepository extends MySQLAbstractRepository implement
 
     @Override
     public Page<Category> getAllCategories(int page, int size) {
-        int checkPage = Math.max(page, 0);
-        int checkSize = size <= 0 ? 20 : size;
-        int offset = checkPage * checkSize;
+        int p = Math.max(page, 1);                 // 1-based
+        int s = size <= 0 ? 20 : size;
+        int offset = (p - 1) * s;
 
-        String data = "select * from categories order by category_name limit ? offset ?";
-        String count = "select count(*) from categories";
+        String dataSql  = "select category_id, category_name, category_description from categories order by category_name limit ? offset ?";
+        String countSql = "select count(*) from categories";
+
         Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
-        int total = 0;
+        PreparedStatement psData = null;
+        PreparedStatement psCount = null;
+        ResultSet rsData = null;
+        ResultSet rsCount = null;
+
         List<Category> content = new ArrayList<>();
+        int total = 0;
 
         try {
             connection = newConnection();
-            preparedStatement = connection.prepareStatement(data);
-            preparedStatement.setInt(1, checkSize);
-            preparedStatement.setInt(2, offset);
 
-            resultSet = preparedStatement.executeQuery();
-
-            while (resultSet.next()) {
-                content.add(mapCategory(resultSet));
+            // data
+            psData = connection.prepareStatement(dataSql);
+            psData.setInt(1, s);
+            psData.setInt(2, offset);
+            rsData = psData.executeQuery();
+            while (rsData.next()) {
+                content.add(mapCategory(rsData));
             }
 
-            preparedStatement = connection.prepareStatement(count);
-            resultSet = preparedStatement.executeQuery();
+            // count (odvojeni statement/rs)
+            psCount = connection.prepareStatement(countSql);
+            rsCount = psCount.executeQuery();
+            if (rsCount.next()) {
+                total = rsCount.getInt(1);
+            }
 
-            resultSet.next();
-            total = resultSet.getInt(1);
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
+            this.closeResultSet(rsData);
+            this.closeStatement(psData);
+            this.closeResultSet(rsCount);
+            this.closeStatement(psCount);
             this.closeConnection(connection);
         }
-        int totalPages = (int) Math.ceil((double)total / checkSize);
-        return new Page<>(content, checkPage, checkSize, total, totalPages);
+
+        int totalPages = (int) Math.ceil((double) total / s);
+        return new Page<>(content, p, s, total, totalPages);
     }
 
     @Override
@@ -119,25 +125,25 @@ public class MySQLCategoriesRepository extends MySQLAbstractRepository implement
         String sql = "insert into categories(category_name, category_description) values (?, ?)";
 
         Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        PreparedStatement ps = null;
+        ResultSet keys = null;
 
         try {
             connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setString(1, category.getCategoryname());
-            preparedStatement.setString(2, category.getCategoryDescription());
-            preparedStatement.executeUpdate();
+            ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, category.getCategoryName());
+            ps.setString(2, category.getCategoryDescription());
+            ps.executeUpdate();
 
-            resultSet = preparedStatement.getGeneratedKeys();
-            if (resultSet.next()) {
-                return resultSet.getInt(1);
+            keys = ps.getGeneratedKeys();
+            if (keys.next()) {
+                return keys.getInt(1);
             }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
+            this.closeResultSet(keys);
+            this.closeStatement(ps);
             this.closeConnection(connection);
         }
         return -1;
@@ -146,23 +152,21 @@ public class MySQLCategoriesRepository extends MySQLAbstractRepository implement
     @Override
     public int updateCategory(Category category) {
         String sql = "update categories set category_name = ?, category_description = ? where category_id = ?";
+
         Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        PreparedStatement ps = null;
 
         try {
             connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setString(1, category.getCategoryname());
-            preparedStatement.setString(2, category.getCategoryDescription());
-            preparedStatement.setInt(3, category.getCategoryID());
-
-            return preparedStatement.executeUpdate();
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            ps = connection.prepareStatement(sql);
+            ps.setString(1, category.getCategoryName());
+            ps.setString(2, category.getCategoryDescription());
+            ps.setInt(3, category.getCategoryID());
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
+            this.closeStatement(ps);
             this.closeConnection(connection);
         }
         return -1;
@@ -171,18 +175,19 @@ public class MySQLCategoriesRepository extends MySQLAbstractRepository implement
     @Override
     public boolean deleteCategory(int categoryID) {
         String delSql = "delete from categories where category_id = ?";
+
         Connection connection = null;
-        PreparedStatement preparedStatement = null;
+        PreparedStatement ps = null;
 
         try {
             connection = newConnection();
-            preparedStatement = connection.prepareStatement(delSql);
-            preparedStatement.setInt(1, categoryID);
-            return preparedStatement.executeUpdate() == 0;
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            ps = connection.prepareStatement(delSql);
+            ps.setInt(1, categoryID);
+            return ps.executeUpdate() == 1;
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeStatement(preparedStatement);
+            this.closeStatement(ps);
             this.closeConnection(connection);
         }
         return false;
@@ -190,25 +195,23 @@ public class MySQLCategoriesRepository extends MySQLAbstractRepository implement
 
     @Override
     public boolean categoryExists(String categoryName) {
-        String sql = "select 1 from categories where category_name = ?";
+        String sql = "select 1 from categories where category_name = ? limit 1";
+
         Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
 
         try {
             connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setString(1, categoryName);
-
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                return true;
-            }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            ps = connection.prepareStatement(sql);
+            ps.setString(1, categoryName);
+            rs = ps.executeQuery();
+            return rs.next();
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
+            this.closeResultSet(rs);
+            this.closeStatement(ps);
             this.closeConnection(connection);
         }
         return false;
@@ -216,25 +219,23 @@ public class MySQLCategoriesRepository extends MySQLAbstractRepository implement
 
     @Override
     public boolean hasEvents(int categoryID) {
-        String sql = "select 1 from events where category_id = ?";
+        String sql = "select 1 from events where category_id = ? limit 1";
+
         Connection connection = null;
-        PreparedStatement preparedStatement = null;
-        ResultSet resultSet = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
 
         try {
             connection = newConnection();
-            preparedStatement = connection.prepareStatement(sql);
-            preparedStatement.setInt(1, categoryID);
-
-            resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                return true;
-            }
-        } catch (SQLException sqlException) {
-            System.err.println(sqlException.getMessage());
+            ps = connection.prepareStatement(sql);
+            ps.setInt(1, categoryID);
+            rs = ps.executeQuery();
+            return rs.next();
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
         } finally {
-            this.closeResultSet(resultSet);
-            this.closeStatement(preparedStatement);
+            this.closeResultSet(rs);
+            this.closeStatement(ps);
             this.closeConnection(connection);
         }
         return false;
