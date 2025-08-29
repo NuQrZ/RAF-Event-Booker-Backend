@@ -17,26 +17,28 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.Provider;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 @Provider
 @Priority(Priorities.AUTHENTICATION)
 public class AuthFilter implements ContainerRequestFilter {
+
     @Context
     private ResourceInfo resourceInfo;
+
+    private static final Set<String> OPEN_PREFIXES = Set.of(
+            "/public/events",
+            "/auth/login"
+    );
 
     private static final Set<String> PUBLIC_GET_PATHS = new HashSet<>(Arrays.asList(
             "/events",
             "/events/search",
             "/events/latest",
             "/events/most-viewed",
-            "/events/top-reacted",
+            "/events/most-reacted",
             "/events/by-category",
             "/events/by-tag",
-            "/events/",
             "/categories",
             "/tags"
     ));
@@ -50,13 +52,12 @@ public class AuthFilter implements ContainerRequestFilter {
     public void filter(ContainerRequestContext requestContext) {
         final String method = requestContext.getMethod();
         final String path = normalize(requestContext.getUriInfo().getPath());
-        final boolean isPublicGet = "GET".equals(method) && isPathPublic(path);
 
-        if (path.equals("/auth/login")) {
+        if (isOpen(path)) {
             return;
         }
 
-        if (isPublicGet) {
+        if ("GET".equalsIgnoreCase(method) && isPublicGet(path)) {
             return;
         }
 
@@ -67,13 +68,12 @@ public class AuthFilter implements ContainerRequestFilter {
         }
 
         String token = authHeader.substring("Bearer ".length()).trim();
-
-        DecodedJWT decoded;
+        final DecodedJWT decoded;
         try {
             Algorithm algorithm = Algorithm.HMAC256(JWT_SECRET.getBytes(StandardCharsets.UTF_8));
             decoded = JWT.require(algorithm)
                     .withIssuer(JWT_ISSUER)
-                    .acceptLeeway(5) // мали clock‑skew у секундама
+                    .acceptLeeway(5)
                     .build()
                     .verify(token);
         } catch (JWTVerificationException e) {
@@ -96,30 +96,27 @@ public class AuthFilter implements ContainerRequestFilter {
         }
     }
 
-    private boolean isPathPublic(String path) {
-        for (String publicPath : PUBLIC_GET_PATHS) {
-            if (path.equals(publicPath) ||  path.startsWith(publicPath)) {
-                return true;
-            }
+    private boolean isOpen(String path) {
+        for (String p : OPEN_PREFIXES) {
+            if (path.equals(p) || path.startsWith(p + "/")) return true;
         }
         return false;
     }
 
-    private void abort(ContainerRequestContext containerRequestContext, Response.Status status, String message) {
-        containerRequestContext.abortWith(Response.status(status).entity(message).build());
+    private boolean isPublicGet(String path) {
+        for (String p : PUBLIC_GET_PATHS) {
+            if (path.equals(p) || path.startsWith(p + "/")) return true;
+        }
+        return false;
+    }
+
+    private void abort(ContainerRequestContext ctx, Response.Status status, String message) {
+        ctx.abortWith(Response.status(status).entity(message).build());
     }
 
     private String normalize(String path) {
-        if (path == null || path.isEmpty()) {
-            return "/";
-        }
-        if (!path.startsWith("/")) {
-            path = "/" + path;
-        }
-        if (path.endsWith("/")) {
-            path = path.substring(0, path.length() - 1);
-        }
-
+        if (path == null || path.isEmpty()) return "/";
+        if (!path.startsWith("/")) path = "/" + path;
         return path;
     }
 }

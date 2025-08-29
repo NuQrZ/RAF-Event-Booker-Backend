@@ -5,6 +5,7 @@ import rs.raf.rafeventbooker.model.Page;
 import rs.raf.rafeventbooker.requests.rsvp.RsvpRequest;
 import rs.raf.rafeventbooker.services.EventService;
 
+import javax.annotation.security.PermitAll;
 import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.ws.rs.*;
@@ -14,6 +15,7 @@ import java.util.List;
 @Path("/public/events")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@PermitAll
 public class PublicEventsResource {
 
     @Inject private EventService service;
