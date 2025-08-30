@@ -367,10 +367,12 @@ public class MySQLEventsRepository extends MySQLAbstractRepository implements Ev
     }
 
 
-    @Override
     public int create(Event e, List<String> tags) {
-        String sql = "insert into events(event_title, event_description, created_at, start_at, event_location, event_views, author_id, category_id, max_capacity, likes, dislikes) " +
-                "values (?,?,?,?,?,0,?,?,?,0,0)";
+        String sql =
+                "insert into events(" +
+                        "  event_title, event_description, created_at, start_at, event_location," +
+                        "  event_views, author_id, category_id, max_capacity, likes, dislikes" +
+                        ") values (?,?,now(),?,?,0,?,?,?,0,0)";
 
         Connection c = null;
         PreparedStatement ps = null;
@@ -381,14 +383,17 @@ public class MySQLEventsRepository extends MySQLAbstractRepository implements Ev
             c.setAutoCommit(false);
 
             ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-            ps.setString(1, e.getEventName());
-            ps.setString(2, e.getEventDescription());
-            ps.setTimestamp(3, Timestamp.valueOf(e.getCreatedAt()));
-            ps.setTimestamp(4, Timestamp.valueOf(e.getStartTime()));
-            ps.setString(5, e.getEventLocation());
-            ps.setInt(6, e.getEventAuthor());
-            ps.setInt(7, e.getCategoryID());
-            if (e.getMaxCapacity() == null) ps.setNull(8, Types.INTEGER); else ps.setInt(8, e.getMaxCapacity());
+            ps.setString(1, e.getEventName());                           // 1: title
+            ps.setString(2, e.getEventDescription());                    // 2: description
+            ps.setTimestamp(3, Timestamp.valueOf(e.getStartTime()));     // 3: start_at
+            ps.setString(4, e.getEventLocation());                       // 4: location
+            ps.setInt(5, e.getEventAuthor());                            // 5: author_id
+            ps.setInt(6, e.getCategoryID());                             // 6: category_id
+            if (e.getMaxCapacity() == null)                              // 7: max_capacity
+                ps.setNull(7, Types.INTEGER);
+            else
+                ps.setInt(7, e.getMaxCapacity());
+
             ps.executeUpdate();
 
             keys = ps.getGeneratedKeys();
@@ -397,11 +402,17 @@ public class MySQLEventsRepository extends MySQLAbstractRepository implements Ev
             e.setEventID(id);
 
             upsertTagsAndBindings(c, id, tags);
-
             c.commit();
             return id;
+
         } catch (SQLException ex) {
-            System.err.println(ex.getMessage());
+            // Log sa više detalja, lakše ćeš naći uzrok
+            System.err.println("[EventsRepo.create] SQLState=" + ex.getSQLState() + " code=" + ex.getErrorCode());
+            ex.printStackTrace();
+            if (c != null) try { c.rollback(); } catch (SQLException ignore) {}
+        } catch (RuntimeException rex) {
+            // hvata NPE i slične
+            rex.printStackTrace();
             if (c != null) try { c.rollback(); } catch (SQLException ignore) {}
         } finally {
             if (c != null) try { c.setAutoCommit(true); } catch (SQLException ignore) {}
@@ -411,6 +422,7 @@ public class MySQLEventsRepository extends MySQLAbstractRepository implements Ev
         }
         return -1;
     }
+
 
     @Override
     public int update(Event e, List<String> tags) {

@@ -73,6 +73,7 @@ public class EventsResource {
     public Response createEvent(@Valid CreateEventRequest body, @Context UriInfo uri) {
         Event e = new Event();
         e.setEventName(body.getEventName());
+        e.setEventAuthor(body.getAuthorID());
         e.setEventDescription(body.getEventDescription());
         e.setStartTime(body.getStartAt());
         e.setEventLocation(body.getEventLocation());

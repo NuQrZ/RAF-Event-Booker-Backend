@@ -10,6 +10,7 @@ public class CreateEventRequest {
     @NotNull  private LocalDateTime startAt;
     @NotBlank private String eventLocation;
     @Positive private int categoryID;
+    @Positive private int authorID;
     @PositiveOrZero private Integer maxCapacity;
     private List<String> tags;
 
@@ -67,5 +68,13 @@ public class CreateEventRequest {
 
     public void setTags(List<String> tags) {
         this.tags = tags;
+    }
+
+    public int getAuthorID() {
+        return authorID;
+    }
+
+    public void setAuthorID(int authorID) {
+        this.authorID = authorID;
     }
 }
