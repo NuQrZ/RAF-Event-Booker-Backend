@@ -18,20 +18,10 @@ import java.util.List;
 
 @Path("/ems/events")
 @Produces(MediaType.APPLICATION_JSON)
-// ❌ uklonjeno sa klase: @Consumes
-@RolesAllowed({ "ADMIN", "EVENT_CREATOR" }) // ← uskladi naziv role sa frontendom
+@RolesAllowed({ "ADMIN", "EVENT_CREATOR" })
 public class EventsResource {
 
     @Inject private EventService service;
-
-    @GET
-    public Page<Event> listEvents(@QueryParam("page") @DefaultValue("1") int page,
-                                  @QueryParam("size") @DefaultValue("10") int size,
-                                  @QueryParam("query") String query) {
-        return (query == null || query.isBlank())
-                ? service.getEvents(page, size)
-                : service.search(query, page, size);
-    }
 
     @GET @Path("/{eventID}")
     public Response getEvent(@PathParam("eventID") int eventID) {
@@ -70,7 +60,7 @@ public class EventsResource {
     }
 
     @POST
-    @Consumes(MediaType.APPLICATION_JSON) // ✅ POST prima JSON
+    @Consumes(MediaType.APPLICATION_JSON)
     public Response createEvent(@Valid CreateEventRequest body, @Context UriInfo uri) {
         Event e = new Event();
         e.setEventName(body.eventName());
@@ -87,7 +77,7 @@ public class EventsResource {
     }
 
     @PUT @Path("/{eventID}")
-    @Consumes(MediaType.APPLICATION_JSON) // ✅ PUT prima JSON
+    @Consumes(MediaType.APPLICATION_JSON)
     public Response updateEvent(@PathParam("eventID") int eventID, @Valid UpdateEventRequest body) {
         Event e = new Event();
         e.setEventID(eventID);
@@ -128,7 +118,7 @@ public class EventsResource {
     }
 
     @POST @Path("/{eventID}/rsvps")
-    @Consumes(MediaType.APPLICATION_JSON) // ✅ POST prima JSON
+    @Consumes(MediaType.APPLICATION_JSON)
     public Response adminCreateRsvp(@PathParam("eventID") int eventID, RSVP body, @Context UriInfo uri) {
         if (body == null || body.getUserEmail() == null || body.getUserEmail().isBlank())
             throw new BadRequestException("userEmail required");

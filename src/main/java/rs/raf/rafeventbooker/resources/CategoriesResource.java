@@ -17,7 +17,6 @@ import java.util.Optional;
 
 @Path("/ems/categories")
 @Produces(MediaType.APPLICATION_JSON)
-// ✖️ NE stavljati @Consumes na klasu – pomeri na POST/PUT
 public class CategoriesResource {
 
     @Inject private CategoryService service;
@@ -62,7 +61,7 @@ public class CategoriesResource {
 
     @RolesAllowed({ "ADMIN", "CREATOR" })
     @POST
-    @Consumes(MediaType.APPLICATION_JSON) // ✅ POST prima JSON
+    @Consumes(MediaType.APPLICATION_JSON)
     public Response createCategory(@Valid CreateCategoryRequest body, @Context UriInfo uri) {
         Category c = new Category();
         c.setCategoryName(body.categoryName());
@@ -79,7 +78,7 @@ public class CategoriesResource {
 
     @RolesAllowed({ "ADMIN", "CREATOR" })
     @PUT @Path("/{categoryID}")
-    @Consumes(MediaType.APPLICATION_JSON) // ✅ PUT prima JSON
+    @Consumes(MediaType.APPLICATION_JSON)
     public Response updateCategory(@PathParam("categoryID") int categoryID,
                                    @Valid UpdateCategoryRequest body) {
         Category c = new Category();

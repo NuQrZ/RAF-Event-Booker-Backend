@@ -54,7 +54,6 @@ public class CommentService {
         if (safeContent.length() > 2000) safeContent = safeContent.substring(0, 2000);
 
         Comment newComment = new Comment();
-        newComment.setCommentID(comment.getCommentID());
         newComment.setEventID(eventID);
         newComment.setCommentAuthor(safeAuthor);
         newComment.setCommentContent(safeContent);

@@ -71,7 +71,7 @@ public class MySQLCategoriesRepository extends MySQLAbstractRepository implement
 
     @Override
     public Page<Category> getAllCategories(int page, int size) {
-        int p = Math.max(page, 1);                 // 1-based
+        int p = Math.max(page, 1);
         int s = size <= 0 ? 20 : size;
         int offset = (p - 1) * s;
 

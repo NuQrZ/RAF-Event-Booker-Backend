@@ -167,8 +167,8 @@ public class MySQLCommentRepository extends MySQLAbstractRepository implements C
 
     private boolean reactToComment(int commentID, String visitorID, int value) {
         String insert = "insert ignore into comment_reactions(comment_id, visitor_id, reaction, reacted_at) values(?, ?, ?, now())";
-        String incLike     = "update comments set likes = likes + 1 where comment_id = ?";
-        String incDislike  = "update comments set dislikes = dislikes + 1 where comment_id = ?";
+        String incLike = "update comments set likes = likes + 1 where comment_id = ?";
+        String incDislike = "update comments set dislikes = dislikes + 1 where comment_id = ?";
 
         Connection c = null;
         PreparedStatement psIns = null, psInc = null;

@@ -653,8 +653,6 @@ public class MySQLEventsRepository extends MySQLAbstractRepository implements Ev
         return false;
     }
 
-    /* ===================== TAG helperi (List<Tag>) ===================== */
-
     public List<Tag> getTagsForEvent(int eventID) {
         String sql =
                 "select t.tag_id, t.tag_name " +

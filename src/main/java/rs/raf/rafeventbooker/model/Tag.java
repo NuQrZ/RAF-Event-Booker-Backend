@@ -4,10 +4,6 @@ public class Tag {
     private Integer tagID;
     private String tagName;
 
-    public Tag() {
-
-    }
-
     public Tag(Integer tagID, String tagName) {
         this.tagID = tagID;
         this.tagName = tagName;

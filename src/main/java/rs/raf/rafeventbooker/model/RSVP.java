@@ -7,10 +7,6 @@ public class RSVP {
     private String userEmail;
     private LocalDateTime createdAt;
 
-    public RSVP() {
-
-    }
-
     public RSVP(Integer eventID, String userEmail, LocalDateTime createdAt) {
         this.eventID = eventID;
         this.userEmail = userEmail;
