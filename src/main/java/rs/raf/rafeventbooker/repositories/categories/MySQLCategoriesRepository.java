@@ -90,7 +90,6 @@ public class MySQLCategoriesRepository extends MySQLAbstractRepository implement
         try {
             connection = newConnection();
 
-            // data
             psData = connection.prepareStatement(dataSql);
             psData.setInt(1, s);
             psData.setInt(2, offset);
@@ -99,7 +98,6 @@ public class MySQLCategoriesRepository extends MySQLAbstractRepository implement
                 content.add(mapCategory(rsData));
             }
 
-            // count (odvojeni statement/rs)
             psCount = connection.prepareStatement(countSql);
             rsCount = psCount.executeQuery();
             if (rsCount.next()) {

@@ -7,14 +7,13 @@ import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.container.PreMatching;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.Provider;
-import java.io.IOException;
 
 @Provider
 @PreMatching
 @Priority(Priorities.AUTHENTICATION - 1)
 public class CORSRequestFilter implements ContainerRequestFilter {
     @Override
-    public void filter(ContainerRequestContext containerRequestContext) throws IOException {
+    public void filter(ContainerRequestContext containerRequestContext) {
         if ("OPTIONS".equalsIgnoreCase(containerRequestContext.getMethod())) {
             String origin = containerRequestContext.getHeaderString("Origin");
             String reqHeaders = containerRequestContext.getHeaderString("Access-Control-Request-Headers");

@@ -72,14 +72,14 @@ public class EventsResource {
     @POST
     public Response createEvent(@Valid CreateEventRequest body, @Context UriInfo uri) {
         Event e = new Event();
-        e.setEventName(body.getEventName());
-        e.setEventAuthor(body.getAuthorID());
-        e.setEventDescription(body.getEventDescription());
-        e.setStartTime(body.getStartAt());
-        e.setEventLocation(body.getEventLocation());
-        e.setCategoryID(body.getCategoryID());
-        e.setMaxCapacity(body.getMaxCapacity());
-        List<String> tags = body.getTags() == null ? List.of() : body.getTags();
+        e.setEventName(body.eventName());
+        e.setEventAuthor(body.authorID());
+        e.setEventDescription(body.eventDescription());
+        e.setStartTime(body.startAt());
+        e.setEventLocation(body.eventLocation());
+        e.setCategoryID(body.categoryID());
+        e.setMaxCapacity(body.maxCapacity());
+        List<String> tags = body.tags() == null ? List.of() : body.tags();
 
         int newId = service.createEvent(e, tags);
         return Response.created(uri.getAbsolutePathBuilder().path(String.valueOf(newId)).build()).build();
@@ -89,13 +89,13 @@ public class EventsResource {
     public Response updateEvent(@PathParam("eventID") int eventID, @Valid UpdateEventRequest body) {
         Event e = new Event();
         e.setEventID(eventID);
-        e.setEventName(body.getEventName());
-        e.setEventDescription(body.getEventDescription());
-        if (body.getStartAt() != null) e.setStartTime(body.getStartAt());
-        e.setEventLocation(body.getEventLocation());
-        e.setCategoryID(body.getCategoryID());
-        e.setMaxCapacity(body.getMaxCapacity());
-        List<String> tags = body.getTags() == null ? List.of() : body.getTags();
+        e.setEventName(body.eventName());
+        e.setEventDescription(body.eventDescription());
+        if (body.startAt() != null) e.setStartTime(body.startAt());
+        e.setEventLocation(body.eventLocation());
+        e.setCategoryID(body.categoryID());
+        e.setMaxCapacity(body.maxCapacity());
+        List<String> tags = body.tags() == null ? List.of() : body.tags();
 
         int updated = service.updateEvent(e, tags);
         if (updated == 1) {

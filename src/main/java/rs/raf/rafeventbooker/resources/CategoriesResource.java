@@ -58,8 +58,8 @@ public class CategoriesResource {
     @POST
     public Response createCategory(@Valid CreateCategoryRequest body, @Context UriInfo uri) {
         Category c = new Category();
-        c.setCategoryName(body.getCategoryName());
-        c.setCategoryDescription(body.getCategoryDescription());
+        c.setCategoryName(body.categoryName());
+        c.setCategoryDescription(body.categoryDescription());
 
         int id = service.createCategory(c);
 
@@ -75,8 +75,8 @@ public class CategoriesResource {
                            @Valid UpdateCategoryRequest body) {
         Category c = new Category();
         c.setCategoryID(categoryID);
-        c.setCategoryName(body.getCategoryName());
-        c.setCategoryDescription(body.getCategoryDescription());
+        c.setCategoryName(body.categoryName());
+        c.setCategoryDescription(body.categoryDescription());
 
         service.updateCategory(c);
         return Response.noContent().build();

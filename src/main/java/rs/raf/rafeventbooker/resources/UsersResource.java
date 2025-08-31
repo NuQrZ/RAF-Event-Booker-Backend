@@ -2,8 +2,8 @@ package rs.raf.rafeventbooker.resources;
 
 import rs.raf.rafeventbooker.model.Page;
 import rs.raf.rafeventbooker.model.User;
-import rs.raf.rafeventbooker.requests.users.CreateUserRequest;   // <-- plural 'users'
-import rs.raf.rafeventbooker.requests.users.UpdateUserRequest;   // <-- plural 'users'
+import rs.raf.rafeventbooker.requests.users.CreateUserRequest;
+import rs.raf.rafeventbooker.requests.users.UpdateUserRequest;
 import rs.raf.rafeventbooker.requests.users.UpdateUserStatusRequest;
 import rs.raf.rafeventbooker.services.UserService;
 

@@ -26,13 +26,11 @@ public class AuthFilter implements ContainerRequestFilter {
     @Context
     private ResourceInfo resourceInfo;
 
-    // ✅ Sve javne (bez JWT) – ceo /public namespace + login
     private static final Set<String> OPEN_PREFIXES = Set.of(
-            "/public",          // obuhvata /public/events, /public/categories, /public/tags, ... (GET/POST/DELETE)
+            "/public",
             "/auth/login"
     );
 
-    // (ako imaš stare “non-public” GET rute, ostavi)
     private static final Set<String> PUBLIC_GET_PATHS = new HashSet<>(Arrays.asList(
             "/events",
             "/events/search",
@@ -56,24 +54,20 @@ public class AuthFilter implements ContainerRequestFilter {
 
         final String method = requestContext.getMethod();
 
-        // ✅ Preflight (CORS) – nikad ne tražimo JWT
         if ("OPTIONS".equalsIgnoreCase(method)) {
             return;
         }
 
         final String path = normalize(requestContext.getUriInfo().getPath());
 
-        // ✅ Sve ispod /public/* i /auth/login je javno (GET/POST/DELETE…)
         if (isOpen(path)) {
             return;
         }
 
-        // ✅ Dodatne javne GET rute (ako ih koristiš)
         if ("GET".equalsIgnoreCase(method) && isPublicGet(path)) {
             return;
         }
 
-        // === JWT verifikacija za ostalo ===
         String authHeader = requestContext.getHeaderString(HttpHeaders.AUTHORIZATION);
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             abort(requestContext, Response.Status.UNAUTHORIZED, "Missing or invalid Authorization header.");
@@ -130,9 +124,6 @@ public class AuthFilter implements ContainerRequestFilter {
     private String normalize(String raw) {
         if (raw == null || raw.isEmpty()) return "/";
         String path = raw.startsWith("/") ? raw : ("/" + raw);
-        // Ako ti JAX-RS app path glasi /api, a ovde dobijaš "/api/...", skini prefiks:
-        // if (path.startsWith("/api/")) path = path.substring(4);
-        // skini završni slash radi konzistentnog prefix match-a
         if (path.length() > 1 && path.endsWith("/")) path = path.substring(0, path.length() - 1);
         return path;
     }

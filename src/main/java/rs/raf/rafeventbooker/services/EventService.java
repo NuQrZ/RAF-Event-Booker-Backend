@@ -99,11 +99,15 @@ public class EventService {
         return eventsRepository.delete(eventID);
     }
 
-    public boolean incrementViewsOnce(int eventID, String visitorID) {
+    public void incrementViewsOnce(int eventID, String visitorID) {
         if (eventID <= 0) {
             throw new BadRequestException("Invalid eventID");
         }
-        return eventsRepository.incrementViewsOnce(eventID, requireVisitor(visitorID));
+        boolean ok = eventsRepository.incrementViewsOnce(eventID, requireVisitor(visitorID));
+
+        if (!ok) {
+            throw new javax.ws.rs.InternalServerErrorException("Failed to increment events views");
+        }
     }
 
     public boolean like(int eventID, String visitorID) {

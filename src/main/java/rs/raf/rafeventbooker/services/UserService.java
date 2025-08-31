@@ -54,7 +54,7 @@ public class UserService {
         }
 
         int affected = usersRepository.updateStatus(userID, userStatus);
-        if (affected == 0) throw new NotFoundException(); // race condition fallback
+        if (affected == 0) throw new NotFoundException();
     }
 
     public void updateUser(User user) {

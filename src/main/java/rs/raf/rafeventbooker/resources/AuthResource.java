@@ -3,7 +3,6 @@ package rs.raf.rafeventbooker.resources;
 import rs.raf.rafeventbooker.requests.login.LoginRequest;
 import rs.raf.rafeventbooker.services.AuthService;
 
-import javax.annotation.security.PermitAll;
 import javax.inject.Inject;
 import javax.validation.Valid;
 import javax.ws.rs.Consumes;

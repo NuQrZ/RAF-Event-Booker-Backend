@@ -54,12 +54,13 @@ public class CommentService {
         if (safeContent.length() > 2000) safeContent = safeContent.substring(0, 2000);
 
         Comment newComment = new Comment();
+        newComment.setCommentID(comment.getCommentID());
         newComment.setEventID(eventID);
         newComment.setCommentAuthor(safeAuthor);
         newComment.setCommentContent(safeContent);
         newComment.setCreatedAt(LocalDateTime.now());
-        newComment.setLikeCount(0);
-        newComment.setDislikeCount(0);
+        newComment.setLikeCount(comment.getLikeCount());
+        newComment.setDislikeCount(comment.getDislikeCount());
 
         int id = commentRepository.createComment(newComment);
         if (id <= 0) {
@@ -68,7 +69,7 @@ public class CommentService {
         return id;
     }
 
-    public boolean deleteComment(int commentID) {
+    public void deleteComment(int commentID) {
         if (commentID <= 0) {
             throw new BadRequestException("Invalid commentID");
         }
@@ -76,10 +77,9 @@ public class CommentService {
         if (!ok) {
             throw new NotFoundException("Comment not found");
         }
-        return true;
     }
 
-    public boolean updateCommentContent(int commentID, String newContent) {
+    public void updateCommentContent(int commentID, String newContent) {
         if (commentID <= 0) {
             throw new BadRequestException("Invalid commentID");
         }
@@ -94,7 +94,6 @@ public class CommentService {
         if (!ok) {
             throw new NotFoundException("Comment not found");
         }
-        return true;
     }
 
     public boolean likeComment(int commentID, String visitorId) {
@@ -102,8 +101,7 @@ public class CommentService {
             throw new BadRequestException("Invalid commentID");
         }
         String vk = requireVisitor(visitorId);
-        boolean ok = commentRepository.like(commentID, vk);
-        return ok;
+        return commentRepository.like(commentID, vk);
     }
 
     public boolean dislikeComment(int commentID, String visitorId) {
@@ -111,8 +109,7 @@ public class CommentService {
             throw new BadRequestException("Invalid commentID");
         }
         String vk = requireVisitor(visitorId);
-        boolean ok = commentRepository.dislike(commentID, vk);
-        return ok;
+        return commentRepository.dislike(commentID, vk);
     }
 
     private String requireVisitor(String visitorID) {

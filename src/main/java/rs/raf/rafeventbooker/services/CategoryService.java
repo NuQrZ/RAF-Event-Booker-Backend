@@ -71,7 +71,7 @@ public class CategoryService {
         }
     }
 
-    public int updateCategory(Category category) {
+    public void updateCategory(Category category) {
         if (category == null) {
             throw new BadRequestException("Invalid category");
         }
@@ -92,10 +92,9 @@ public class CategoryService {
         if (updated != 1) {
             throw new NotFoundException("Category not found");
         }
-        return updated;
     }
 
-    public boolean deleteCategory(int categoryID) {
+    public void deleteCategory(int categoryID) {
         if (categoriesRepository.hasEvents(categoryID)) {
             throw new BadRequestException("Cannot delete category with events");
         }
@@ -103,7 +102,6 @@ public class CategoryService {
         if (!ok) {
             throw new NotFoundException("Category not found");
         }
-        return true;
     }
 
     private String normalize(String s) {

@@ -60,7 +60,7 @@ public class PublicEventsResource {
 
     @GET @Path("/{eventID}")
     public Response detail(@PathParam("eventID") int eventID,
-                           @HeaderParam("X-Visitor-Id") String visitorID) {
+                           @HeaderParam("VisitorId") String visitorID) {
         Event e = service.getEventByID(eventID)
                 .orElseThrow(() -> new NotFoundException("Event not found"));
         service.incrementViewsOnce(eventID, requireVisitor(visitorID));
@@ -69,7 +69,7 @@ public class PublicEventsResource {
 
     @POST @Path("/{eventID}/like")
     public Response like(@PathParam("eventID") int eventID,
-                         @HeaderParam("X-Visitor-Id") String visitorID) {
+                         @HeaderParam("VisitorId") String visitorID) {
         service.getEventByID(eventID).orElseThrow(() -> new NotFoundException("Event not found"));
         boolean ok = service.like(eventID, requireVisitor(visitorID));
         return ok ? Response.noContent().build() : Response.status(Response.Status.CONFLICT).build();
@@ -77,7 +77,7 @@ public class PublicEventsResource {
 
     @POST @Path("/{eventID}/dislike")
     public Response dislike(@PathParam("eventID") int eventID,
-                            @HeaderParam("X-Visitor-Id") String visitorID) {
+                            @HeaderParam("VisitorId") String visitorID) {
         service.getEventByID(eventID).orElseThrow(() -> new NotFoundException("Event not found"));
         boolean ok = service.dislike(eventID, requireVisitor(visitorID));
         return ok ? Response.noContent().build() : Response.status(Response.Status.CONFLICT).build();
@@ -118,7 +118,7 @@ public class PublicEventsResource {
 
     private String requireVisitor(String visitorID) {
         if (visitorID == null || visitorID.isBlank())
-            throw new BadRequestException("Missing X-Visitor-Id header");
+            throw new BadRequestException("Missing VisitorId header");
         return visitorID;
     }
 }

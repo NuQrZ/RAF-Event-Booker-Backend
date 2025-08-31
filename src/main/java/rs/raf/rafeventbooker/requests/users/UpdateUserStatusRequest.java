@@ -6,5 +6,4 @@ import javax.validation.constraints.NotBlank;
 
 public record UpdateUserStatusRequest(
         @NotBlank UserStatus userStatus
-) {
-}
+) {}

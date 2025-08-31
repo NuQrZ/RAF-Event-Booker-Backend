@@ -383,13 +383,13 @@ public class MySQLEventsRepository extends MySQLAbstractRepository implements Ev
             c.setAutoCommit(false);
 
             ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-            ps.setString(1, e.getEventName());                           // 1: title
-            ps.setString(2, e.getEventDescription());                    // 2: description
-            ps.setTimestamp(3, Timestamp.valueOf(e.getStartTime()));     // 3: start_at
-            ps.setString(4, e.getEventLocation());                       // 4: location
-            ps.setInt(5, e.getEventAuthor());                            // 5: author_id
-            ps.setInt(6, e.getCategoryID());                             // 6: category_id
-            if (e.getMaxCapacity() == null)                              // 7: max_capacity
+            ps.setString(1, e.getEventName());
+            ps.setString(2, e.getEventDescription());
+            ps.setTimestamp(3, Timestamp.valueOf(e.getStartTime()));
+            ps.setString(4, e.getEventLocation());
+            ps.setInt(5, e.getEventAuthor());
+            ps.setInt(6, e.getCategoryID());
+            if (e.getMaxCapacity() == null)
                 ps.setNull(7, Types.INTEGER);
             else
                 ps.setInt(7, e.getMaxCapacity());

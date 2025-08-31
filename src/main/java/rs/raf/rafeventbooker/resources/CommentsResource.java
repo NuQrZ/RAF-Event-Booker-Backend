@@ -39,8 +39,8 @@ public class CommentsResource {
                            @Context UriInfo uri) {
         Comment c = new Comment();
         c.setEventID(eventID);
-        c.setCommentAuthor(body.getAuthorName());
-        c.setCommentContent(body.getContent());
+        c.setCommentAuthor(body.authorName());
+        c.setCommentContent(body.content());
 
         int id = service.createComment(c);
 
@@ -51,7 +51,7 @@ public class CommentsResource {
     @PUT @Path("/{commentID}")
     public Response updateComment(@PathParam("commentID") int commentID,
                            @Valid UpdateCommentRequest body) {
-        service.updateCommentContent(commentID, body.getContent());
+        service.updateCommentContent(commentID, body.content());
         return Response.noContent().build();
     }
 
@@ -63,14 +63,14 @@ public class CommentsResource {
 
     @POST @Path("/{commentID}/like")
     public Response like(@PathParam("commentID") int commentID,
-                         @HeaderParam("X-Visitor-Id") String visitorID) {
+                         @HeaderParam("VisitorId") String visitorID) {
         boolean ok = service.likeComment(commentID, visitorID);
         return ok ? Response.noContent().build() : Response.status(Response.Status.CONFLICT).build();
     }
 
     @POST @Path("/{commentID}/dislike")
     public Response dislike(@PathParam("commentID") int commentID,
-                            @HeaderParam("X-Visitor-Id") String visitorID) {
+                            @HeaderParam("VisitorId") String visitorID) {
         boolean ok = service.dislikeComment(commentID, visitorID);
         return ok ? Response.noContent().build() : Response.status(Response.Status.CONFLICT).build();
     }

@@ -14,8 +14,6 @@ import rs.raf.rafeventbooker.repositories.events.EventsRepository;
 import rs.raf.rafeventbooker.repositories.events.MySQLEventsRepository;
 import rs.raf.rafeventbooker.repositories.rsvp.MySQLRsvpRepository;
 import rs.raf.rafeventbooker.repositories.rsvp.RsvpRepository;
-import rs.raf.rafeventbooker.repositories.tags.MySQLTagsRepository;
-import rs.raf.rafeventbooker.repositories.tags.TagsRepository;
 import rs.raf.rafeventbooker.repositories.users.MySQLUsersRepository;
 import rs.raf.rafeventbooker.repositories.users.UsersRepository;
 import rs.raf.rafeventbooker.services.*;
@@ -32,7 +30,6 @@ public class HelloApplication extends ResourceConfig {
             @Override
             protected void configure() {
                 this.bind(MySQLUsersRepository.class).to(UsersRepository.class).in(Singleton.class);
-                this.bind(MySQLTagsRepository.class).to(TagsRepository.class).in(Singleton.class);
                 this.bind(MySQLRsvpRepository.class).to(RsvpRepository.class).in(Singleton.class);
                 this.bind(MySQLEventsRepository.class).to(EventsRepository.class).in(Singleton.class);
                 this.bind(MySQLCommentRepository.class).to(CommentRepository.class).in(Singleton.class);
