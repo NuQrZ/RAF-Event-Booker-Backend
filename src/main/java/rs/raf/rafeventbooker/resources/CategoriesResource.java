@@ -6,6 +6,7 @@ import rs.raf.rafeventbooker.requests.categories.CreateCategoryRequest;
 import rs.raf.rafeventbooker.requests.categories.UpdateCategoryRequest;
 import rs.raf.rafeventbooker.services.CategoryService;
 
+import javax.annotation.security.PermitAll;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.validation.Valid;
@@ -16,18 +17,19 @@ import java.util.Optional;
 
 @Path("/ems/categories")
 @Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
-@RolesAllowed({ "ADMIN", "CREATOR" })
+// ✖️ NE stavljati @Consumes na klasu – pomeri na POST/PUT
 public class CategoriesResource {
 
     @Inject private CategoryService service;
 
+    @PermitAll
     @GET
     public Page<Category> listCategories(@QueryParam("page") @DefaultValue("1") int page,
-                               @QueryParam("size") @DefaultValue("10") int size) {
+                                         @QueryParam("size") @DefaultValue("10") int size) {
         return service.getCategories(page, size);
     }
 
+    @RolesAllowed({ "ADMIN", "CREATOR" })
     @GET @Path("/{categoryID}")
     public Response getCategory(@PathParam("categoryID") int categoryID) {
         Category c = service.getCategory(categoryID)
@@ -35,6 +37,7 @@ public class CategoriesResource {
         return Response.ok(c).build();
     }
 
+    @RolesAllowed({ "ADMIN", "CREATOR" })
     @GET @Path("/by-name/{name}")
     public Response getByName(@PathParam("name") String name) {
         Optional<Category> opt = service.getCategoryByName(name);
@@ -43,19 +46,23 @@ public class CategoriesResource {
                 .build();
     }
 
+    @RolesAllowed({ "ADMIN", "CREATOR" })
     @GET @Path("/exists")
-    public Response xists(@QueryParam("name") String name) {
+    public Response exists(@QueryParam("name") String name) {
         boolean exists = service.categoryExists(name);
         return Response.ok(exists).build();
     }
 
+    @RolesAllowed({ "ADMIN", "CREATOR" })
     @GET @Path("/{categoryID}/has-events")
     public Response hasEvents(@PathParam("categoryID") int categoryID) {
         boolean has = service.hasEvents(categoryID);
         return Response.ok(has).build();
     }
 
+    @RolesAllowed({ "ADMIN", "CREATOR" })
     @POST
+    @Consumes(MediaType.APPLICATION_JSON) // ✅ POST prima JSON
     public Response createCategory(@Valid CreateCategoryRequest body, @Context UriInfo uri) {
         Category c = new Category();
         c.setCategoryName(body.categoryName());
@@ -70,9 +77,11 @@ public class CategoriesResource {
         return Response.created(location).entity(created).build();
     }
 
+    @RolesAllowed({ "ADMIN", "CREATOR" })
     @PUT @Path("/{categoryID}")
+    @Consumes(MediaType.APPLICATION_JSON) // ✅ PUT prima JSON
     public Response updateCategory(@PathParam("categoryID") int categoryID,
-                           @Valid UpdateCategoryRequest body) {
+                                   @Valid UpdateCategoryRequest body) {
         Category c = new Category();
         c.setCategoryID(categoryID);
         c.setCategoryName(body.categoryName());
@@ -82,6 +91,7 @@ public class CategoriesResource {
         return Response.noContent().build();
     }
 
+    @RolesAllowed({ "ADMIN", "CREATOR" })
     @DELETE @Path("/{categoryID}")
     public Response deleteCategory(@PathParam("categoryID") int categoryID) {
         service.deleteCategory(categoryID);

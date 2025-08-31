@@ -18,16 +18,16 @@ import java.util.List;
 
 @Path("/ems/events")
 @Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
-@RolesAllowed({"ADMIN","CREATOR"})
+// ❌ uklonjeno sa klase: @Consumes
+@RolesAllowed({ "ADMIN", "EVENT_CREATOR" }) // ← uskladi naziv role sa frontendom
 public class EventsResource {
 
     @Inject private EventService service;
 
     @GET
     public Page<Event> listEvents(@QueryParam("page") @DefaultValue("1") int page,
-                            @QueryParam("size") @DefaultValue("10") int size,
-                            @QueryParam("query") String query) {
+                                  @QueryParam("size") @DefaultValue("10") int size,
+                                  @QueryParam("query") String query) {
         return (query == null || query.isBlank())
                 ? service.getEvents(page, size)
                 : service.search(query, page, size);
@@ -42,15 +42,15 @@ public class EventsResource {
 
     @GET @Path("/by-category/{categoryID}")
     public Page<Event> listEventsByCategory(@PathParam("categoryID") int categoryID,
-                                  @QueryParam("page") @DefaultValue("1") int page,
-                                  @QueryParam("size") @DefaultValue("10") int size) {
+                                            @QueryParam("page") @DefaultValue("1") int page,
+                                            @QueryParam("size") @DefaultValue("10") int size) {
         return service.getEventsByCategory(categoryID, page, size);
     }
 
     @GET @Path("/by-tag/{tag}")
     public Page<Event> listEventsByTag(@PathParam("tag") String tag,
-                             @QueryParam("page") @DefaultValue("1") int page,
-                             @QueryParam("size") @DefaultValue("10") int size) {
+                                       @QueryParam("page") @DefaultValue("1") int page,
+                                       @QueryParam("size") @DefaultValue("10") int size) {
         return service.getEventsByTag(tag, page, size);
     }
 
@@ -70,6 +70,7 @@ public class EventsResource {
     }
 
     @POST
+    @Consumes(MediaType.APPLICATION_JSON) // ✅ POST prima JSON
     public Response createEvent(@Valid CreateEventRequest body, @Context UriInfo uri) {
         Event e = new Event();
         e.setEventName(body.eventName());
@@ -86,6 +87,7 @@ public class EventsResource {
     }
 
     @PUT @Path("/{eventID}")
+    @Consumes(MediaType.APPLICATION_JSON) // ✅ PUT prima JSON
     public Response updateEvent(@PathParam("eventID") int eventID, @Valid UpdateEventRequest body) {
         Event e = new Event();
         e.setEventID(eventID);
@@ -98,9 +100,7 @@ public class EventsResource {
         List<String> tags = body.tags() == null ? List.of() : body.tags();
 
         int updated = service.updateEvent(e, tags);
-        if (updated == 1) {
-            return Response.noContent().build();
-        }
+        if (updated == 1) return Response.noContent().build();
         throw new NotFoundException("Event not found");
     }
 
@@ -112,7 +112,7 @@ public class EventsResource {
 
     @PUT @Path("/{eventID}/start-at")
     public Response setEventStartAt(@PathParam("eventID") int eventID,
-                               @QueryParam("at") String isoDateTime) {
+                                    @QueryParam("at") String isoDateTime) {
         if (isoDateTime == null || isoDateTime.isBlank()) throw new BadRequestException("Query param 'at' is required");
         final LocalDateTime t;
         try { t = LocalDateTime.parse(isoDateTime); }
@@ -128,10 +128,12 @@ public class EventsResource {
     }
 
     @POST @Path("/{eventID}/rsvps")
+    @Consumes(MediaType.APPLICATION_JSON) // ✅ POST prima JSON
     public Response adminCreateRsvp(@PathParam("eventID") int eventID, RSVP body, @Context UriInfo uri) {
         if (body == null || body.getUserEmail() == null || body.getUserEmail().isBlank())
             throw new BadRequestException("userEmail required");
-        RSVP rsvp = new RSVP(eventID, body.getUserEmail(), body.getCreatedAt() == null ? LocalDateTime.now() : body.getCreatedAt());
+        RSVP rsvp = new RSVP(eventID, body.getUserEmail(),
+                body.getCreatedAt() == null ? LocalDateTime.now() : body.getCreatedAt());
         int res = service.createRsvp(rsvp);
         if (res < 0) throw new BadRequestException("Failed to create RSVP");
         return Response.created(uri.getAbsolutePathBuilder().path("rsvps").path(body.getUserEmail()).build()).build();
